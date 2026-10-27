@@ -1,0 +1,88 @@
+{
+  "name": "ProductVariant",
+  "type": "object",
+  "properties": {
+    "product_id": {
+      "type": "string"
+    },
+    "source_id": {
+      "type": "string"
+    },
+    "sku": {
+      "type": "string"
+    },
+    "option1_name": {
+      "type": "string"
+    },
+    "option1_value": {
+      "type": "string"
+    },
+    "option2_name": {
+      "type": "string"
+    },
+    "option2_value": {
+      "type": "string"
+    },
+    "option3_name": {
+      "type": "string"
+    },
+    "option3_value": {
+      "type": "string"
+    },
+    "price": {
+      "type": "number"
+    },
+    "promo_price": {
+      "type": "number"
+    },
+    "stock": {
+      "type": "number",
+      "default": 0
+    },
+    "weight_kg": {
+      "type": "number"
+    },
+    "height_cm": {
+      "type": "number"
+    },
+    "width_cm": {
+      "type": "number"
+    },
+    "length_cm": {
+      "type": "number"
+    },
+    "barcode": {
+      "type": "string"
+    },
+    "active": {
+      "type": "boolean",
+      "default": true
+    },
+    "position": {
+      "type": "number",
+      "default": 0
+    }
+  },
+  "required": [
+    "product_id",
+    "sku"
+  ],
+  "rls": {
+    "read": {},
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

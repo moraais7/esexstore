@@ -1,0 +1,190 @@
+{
+  "name": "Order",
+  "type": "object",
+  "properties": {
+    "order_number": {
+      "type": "string"
+    },
+    "customer_name": {
+      "type": "string"
+    },
+    "customer_email": {
+      "type": "string"
+    },
+    "customer_phone": {
+      "type": "string"
+    },
+    "customer_document": {
+      "type": "string"
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "product_id": {
+            "type": "string"
+          },
+          "product_name": {
+            "type": "string"
+          },
+          "product_slug": {
+            "type": "string"
+          },
+          "variant_id": {
+            "type": "string"
+          },
+          "sku": {
+            "type": "string"
+          },
+          "variant_label": {
+            "type": "string"
+          },
+          "unit_price": {
+            "type": "number"
+          },
+          "quantity": {
+            "type": "number"
+          },
+          "line_total": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "items_count": {
+      "type": "number"
+    },
+    "subtotal": {
+      "type": "number"
+    },
+    "discount_total": {
+      "type": "number",
+      "default": 0
+    },
+    "shipping_total": {
+      "type": "number",
+      "default": 0
+    },
+    "total": {
+      "type": "number"
+    },
+    "currency": {
+      "type": "string",
+      "default": "BRL"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending_payment",
+        "paid",
+        "shipping_quote",
+        "awaiting_shipment",
+        "shipped",
+        "cancelled"
+      ],
+      "default": "pending_payment"
+    },
+    "payment_status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "paid",
+        "failed",
+        "expired",
+        "refunded"
+      ],
+      "default": "pending"
+    },
+    "payment_provider": {
+      "type": "string"
+    },
+    "payment_reference": {
+      "type": "string"
+    },
+    "checkout_url": {
+      "type": "string"
+    },
+    "paid_at": {
+      "type": "string"
+    },
+    "stock_committed": {
+      "type": "boolean",
+      "default": false
+    },
+    "shipping_status": {
+      "type": "string",
+      "enum": [
+        "quote_pending",
+        "quoted",
+        "arranged"
+      ],
+      "default": "quote_pending"
+    },
+    "shipping_method": {
+      "type": "string"
+    },
+    "shipping_address": {
+      "type": "object",
+      "properties": {
+        "postal_code": {
+          "type": "string"
+        },
+        "street": {
+          "type": "string"
+        },
+        "number": {
+          "type": "string"
+        },
+        "complement": {
+          "type": "string"
+        },
+        "district": {
+          "type": "string"
+        },
+        "city": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string"
+        },
+        "country": {
+          "type": "string",
+          "default": "Brasil"
+        }
+      }
+    },
+    "notes": {
+      "type": "string"
+    },
+    "admin_notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "order_number",
+    "customer_name"
+  ],
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

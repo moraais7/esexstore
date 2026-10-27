@@ -1,0 +1,89 @@
+{
+  "name": "ImportBatch",
+  "type": "object",
+  "properties": {
+    "file_name": {
+      "type": "string"
+    },
+    "mode": {
+      "type": "string"
+    },
+    "rows_total": {
+      "type": "number",
+      "default": 0
+    },
+    "products_created": {
+      "type": "number",
+      "default": 0
+    },
+    "products_updated": {
+      "type": "number",
+      "default": 0
+    },
+    "variants_created": {
+      "type": "number",
+      "default": 0
+    },
+    "variants_updated": {
+      "type": "number",
+      "default": 0
+    },
+    "rows_failed": {
+      "type": "number",
+      "default": 0
+    },
+    "errors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "row": {
+            "type": "number"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "status": {
+      "type": "string",
+      "default": "completed"
+    },
+    "image_step_pending": {
+      "type": "boolean",
+      "default": true
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "file_name"
+  ],
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
