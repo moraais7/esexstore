@@ -37,13 +37,14 @@ export default function Checkout() {
   const cancelToken = params.get("cancel_token");
   const [cancelling, setCancelling] = useState(Boolean(cancelToken));
   useEffect(() => {
-    if (!cancelToken) return undefined;
+    if (!cancelToken) { setCancelling(false); return undefined; }
     let active = true;
     setCancelling(true);
     base44.functions.invoke("cancelCheckout", { token: cancelToken })
       .then(({ data }) => {
         if (!active) return;
         if (!data.cancelled) setError("O pagamento anterior pode estar em processamento. Confira a situação com a loja antes de tentar outra compra.");
+        setCancelling(false);
         const next = new URLSearchParams(window.location.search); next.delete("cancel_token"); setParams(next, { replace: true });
       })
       .catch(err => { if (active) setError(err?.response?.data?.error || "Não foi possível encerrar o pagamento anterior."); })
