@@ -79,10 +79,10 @@ export default function ImageListEditor({ images, onChange, variants = [], produ
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="todas">Todas as variações</SelectItem>
-                {variants.map((variant) => (
+                {variants.filter((variant, index, list) => list.findIndex(entry => entry.sku === variant.sku) === index).map((variant) => (
                   <SelectItem key={variant.sku} value={variant.sku}>
                     {variant.sku}
-                    {variantLabel(variant) ? ` — ${variantLabel(variant)}` : ""}
+                    {variants.filter(entry => entry.sku === variant.sku).length > 1 ? " — opções com este SKU" : variantLabel(variant) ? ` — ${variantLabel(variant)}` : ""}
                   </SelectItem>
                 ))}
               </SelectContent>

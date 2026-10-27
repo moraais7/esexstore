@@ -56,6 +56,7 @@ export default function AdminImport() {
 
   const runImport = async () => {
     if (!preview?.products?.length) return;
+    if (preview.errors.length) { setError("Corrija as inconsistências indicadas antes de importar. Nenhum produto foi gravado."); return; }
     setStep(3);
     setError(null);
     const totals = { products_created: 0, products_updated: 0, variants_created: 0, variants_updated: 0, categories_created: 0, errors: [] };
@@ -178,7 +179,7 @@ export default function AdminImport() {
               <Button variant="outline" className="rounded-xl border-white/20 bg-transparent text-background hover:bg-white/10" onClick={reset}>
                 Trocar arquivo
               </Button>
-              <Button onClick={runImport} className="rounded-xl bg-gold text-foreground hover:bg-gold/90">
+              <Button onClick={runImport} disabled={preview.errors.length > 0} className="rounded-xl bg-gold text-foreground hover:bg-gold/90">
                 Importar {preview.stats.products} produtos
               </Button>
             </div>
@@ -272,7 +273,7 @@ export default function AdminImport() {
             {preview.errors.length > 0 && (
               <div className="border border-gold/30 bg-gold/[0.06] p-4">
                 <p className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-gold">
-                  <AlertTriangle className="h-4 w-4" strokeWidth={1.6} /> {preview.errors.length} avisos de duplicidade ou inconsistência
+                  <AlertTriangle className="h-4 w-4" strokeWidth={1.6} /> {preview.errors.length} inconsistências que precisam ser corrigidas antes da importação
                 </p>
                 <ul className="mt-3 space-y-1 text-xs text-background/70">
                   {preview.errors.slice(0, 6).map((item, index) => (
@@ -282,6 +283,8 @@ export default function AdminImport() {
                 {preview.errors.length > 6 && <p className="mt-2 text-xs text-background/50">e mais {preview.errors.length - 6} avisos…</p>}
               </div>
             )}
+
+            {preview.notices.length > 0 && <p className="text-xs text-background/70">{preview.notices.length} registro(s) usam SKU compartilhado por opções diferentes. As opções serão preservadas com seus respectivos estoques.</p>}
 
             <div className="overflow-x-auto border border-white/10">
               <table className="w-full min-w-[820px] text-sm">

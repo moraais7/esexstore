@@ -151,10 +151,10 @@ export default function AdminImages() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="todas">Todas as variações</SelectItem>
-                      {productVariants.map((variant) => (
+                      {productVariants.filter((variant, index, list) => list.findIndex(entry => entry.sku === variant.sku) === index).map((variant) => (
                         <SelectItem key={variant.sku} value={variant.sku}>
                           {variant.sku}
-                          {variantLabel(variant) ? ` — ${variantLabel(variant)}` : ""}
+                          {productVariants.filter(entry => entry.sku === variant.sku).length > 1 ? " — opções com este SKU" : variantLabel(variant) ? ` — ${variantLabel(variant)}` : ""}
                         </SelectItem>
                       ))}
                     </SelectContent>

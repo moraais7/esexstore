@@ -330,7 +330,7 @@ export const buildCatalog = (rows, mapping, options = {}) => {
         current = {
           source_id: sourceId,
           name,
-          slug: rawSlug ? slugify(rawSlug) : slugify(name),
+          slug: /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(rawSlug || sourceId) ? (rawSlug || sourceId) : slugify(rawSlug || name),
           categories: parseCategoryPaths(read(row, "categories")),
           description: "",
           tags: [],
@@ -405,10 +405,15 @@ export const buildCatalog = (rows, mapping, options = {}) => {
       });
       return;
     }
-    if (current.variants.some((variant) => variant.sku && variant.sku === variantData.sku)) {
-      errors.push({ row: row.index, code: "sku_repetido_no_produto", message: `SKU ${variantKey} repetido no mesmo produto.` });
+    if (current.variants.some((variant) => variant.sku && variant.sku.toUpperCase() === variantData.sku.toUpperCase() && [1, 2, 3].every(slot => variant[`option${slot}_value`] === variantData[`option${slot}_value`]))) {
+      errors.push({ row: row.index, code: "sku_repetido_no_produto", message: `SKU ${variantKey} e a mesma combinação de opções repetidos no produto.` });
       return;
     }
+    if (current.variants.some(variant => variant.sku.toUpperCase() === variantKey.toUpperCase())) {
+      notices.push({ row: row.index, code: "sku_compartilhado", message: `SKU ${variantKey} compartilhado por opções diferentes — todas as opções serão mantidas.` });
+    }
+    if (!sku) current.review_notes.push("SKU ausente em uma variação — código interno gerado para revisão.");
+    if (stockRaw === "") current.review_notes.push("Estoque ausente em uma variação — indisponível até revisão.");
     variantData.sku = variantKey;
     current.variants.push(variantData);
     bySku.set(variantKey, current);
@@ -425,6 +430,10 @@ export const buildCatalog = (rows, mapping, options = {}) => {
     }
     if (!pricedVariants.length) product.review_notes.push("Preço não informado no arquivo — revisar antes de publicar.");
     if (!String(product.description || "").trim()) product.review_notes.push("Descrição vazia no arquivo — completar antes de publicar.");
+    if (product.physical && product.variants.some(variant => !["weight_kg", "height_cm", "width_cm", "length_cm"].every(field => Number(variant[field]) > 0))) {
+      product.review_notes.push("Peso ou medidas de uma variação ausentes/zerados — revisar para calcular frete.");
+    }
+    product.review_notes = [...new Set(product.review_notes)];
     if (!product.images.length) product.review_notes.push("Fotos do produto ainda não associadas — usar a etapa de importação de imagens.");
     product.images = product.images.map((image) => ({ ...image, alt: image.alt || `${product.name} — foto do produto` }));
     product.summary = firstText(product.description);

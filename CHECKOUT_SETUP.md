@@ -74,3 +74,11 @@ O projeto já possuía erros de tipagem em componentes JavaScript e em wrappers 
 Nenhuma credencial, conta externa, configuração de produção ou publicação no Base44 foi alterada por este commit. A compilação local sem VITE_BASE44_APP_ID serve apenas para verificar o código; o ambiente publicado precisa das variáveis do próprio Base44.
 
 Referências: [Base44 SDK](https://github.com/base44/skills), [cotação Melhor Envio](https://docs.melhorenvio.com.br/reference/calculo-de-fretes-por-produtos), [Stripe Checkout](https://docs.stripe.com/api/checkout/sessions/create), [Resend](https://resend.com/docs/api-reference/emails/send-email).
+
+## Importação do catálogo
+
+O importador preserva o identificador de URL válido da Nuvemshop, inclusive sufixos, e usa SKU **junto da combinação de opções** para reconhecer uma variação existente. Cores, tamanhos ou sabores com o mesmo SKU são mantidos como registros distintos; uma reimportação não deve sobrescrever outra opção. Duplicidades exatas ou ambiguidades precisam de revisão. Se o banco já tiver SKU e opções duplicados, o produto inteiro é ignorado antes de alterar seus dados. Renomear ou remover opções já cadastradas exige revisão manual; a importação não remove automaticamente variações ausentes no arquivo. A prévia bloqueia a importação quando contém erros, em vez de importar silenciosamente um catálogo incompleto.
+
+Preço ausente/zerado não conserva um preço antigo, e retirar o promocional remove o desconto anterior. Peso e medidas ausentes/zerados são sinalizados para revisão, sem valores fictícios. O estoque ausente fica indisponível até revisão. Os dados de custo de compra são restritos à leitura administrativa no schema Product.
+
+O CSV de produtos pode não incluir fotos. Nesse caso, as fotos já cadastradas são preservadas e as novas devem ser associadas na etapa de imagens. Um SKU compartilhado representa um grupo de opções nessa associação; as opções de compra continuam individualizadas pelos IDs das variantes. Arquivos originais de catálogo e custos internos não devem ser adicionados ao repositório público.
