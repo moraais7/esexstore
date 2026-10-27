@@ -19,6 +19,7 @@ const matches = (record, query) => Object.entries(query).every(([key, expected])
     if (op === '$in') return target.includes(value);
     if (op === '$ne') return Array.isArray(value) ? !value.includes(target) : value !== target;
     if (op === '$gte') return value >= target;
+    if (op === '$lte') return value <= target;
     throw new Error(`Unsupported operator ${op}`);
   });
   return Array.isArray(value) ? value.includes(expected) : value === expected;
@@ -171,7 +172,7 @@ test('Stripe rejection rolls back reservation; timeout retry uses same order and
   assert.equal((await createCheckout(post(body))).status, 502); assert.equal(f.db.ProductVariant[0].stock, 5);
   f = fixture(); body = await quoted(); let key;
   globalThis.fetch = async (_url, options) => { key = options.headers['Idempotency-Key']; throw new Error('timeout'); };
-  assert.equal((await createCheckout(post(body))).status, 500); assert.equal(f.db.ProductVariant[0].stock, 3);
+  assert.equal((await createCheckout(post(body))).status, 500); assert.equal(f.db.ProductVariant[0].stock, 5);
   globalThis.fetch = async (_url, options) => { assert.equal(options.headers['Idempotency-Key'], key); return Response.json({ id: 'cs_test_123', url: 'https://checkout.stripe.com/test' }); };
   assert.equal((await createCheckout(post(body))).status, 200); assert.equal(f.db.Order.length, 1); assert.equal(f.db.ProductVariant[0].stock, 3);
 });
@@ -219,4 +220,46 @@ test('a refund arriving before completion is reconciled by PaymentIntent metadat
   assert.equal((await signed(event)).status, 200);
   assert.equal(db.Order[0].payment_status, 'refunded'); assert.equal(db.ProductVariant[0].stock, 5);
   await signed(paidEvent(db.Order[0])); assert.equal(db.Order[0].payment_status, 'refunded'); assert.equal(db.ProductVariant[0].stock, 5);
+});
+
+test('concurrent checkout retries never cancel a successful pending Stripe request', async () => {
+  const { db } = fixture(); const body = await quoted();
+  let firstStarted; const started = new Promise(resolve => { firstStarted = resolve; });
+  let finishFirst; const finish = new Promise(resolve => { finishFirst = resolve; });
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls++;
+    if (calls === 1) { firstStarted(); await finish; return Response.json({ id: 'cs_test_123', url: 'https://checkout.stripe.com/test' }); }
+    return Response.json({ error: { code: 'idempotency_key_in_use' } }, { status: 409 });
+  };
+  const first = createCheckout(post(body)); await started;
+  const second = await createCheckout(post(body));
+  finishFirst(); const successful = await first;
+  assert.equal(successful.status, 200); assert.ok([409, 502].includes(second.status));
+  assert.equal(db.Order[0].payment_status, 'pending'); assert.equal(db.Order[0].status, 'pending_payment');
+  assert.equal(db.ProductVariant[0].stock, 3);
+  await signed(paidEvent(db.Order[0])); assert.equal(db.Order[0].payment_status, 'paid');
+});
+
+test('ambiguous creation without a Stripe reference holds no inventory and remains administratively cancellable', async () => {
+  const { db } = fixture(); const body = await quoted();
+  globalThis.fetch = async () => { throw new Error('connection failed before session creation'); };
+  assert.equal((await createCheckout(post(body))).status, 500);
+  assert.equal(db.ProductVariant[0].stock, 5); assert.equal(db.Order[0].stock_committed, false);
+  assert.equal(db.Order[0].stock_reserved, false);
+  db.Order[0].checkout_expires_at = '2000-01-01T00:00:00Z';
+  assert.equal((await createCheckout(post(body))).status, 409);
+  assert.equal((await manageOrder(post({ order_id: db.Order[0].id, action: 'cancel' }))).status, 200);
+  assert.equal(db.ProductVariant[0].stock, 5);
+});
+
+test('database failure persisting the Stripe reference cannot strand a stock reservation', async () => {
+  const { db, entities } = fixture(); const body = await quoted(); mockStripe();
+  const updateMany = entities.Order.updateMany.bind(entities.Order);
+  entities.Order.updateMany = async (query, ops) => {
+    if (ops.$set?.payment_reference) throw new Error('database unavailable');
+    return updateMany(query, ops);
+  };
+  assert.equal((await createCheckout(post(body))).status, 500);
+  assert.equal(db.ProductVariant[0].stock, 5); assert.equal(db.Order[0].stock_committed, false);
 });

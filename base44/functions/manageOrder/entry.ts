@@ -36,6 +36,7 @@ export default async function (req) {
     }
 
     if (action === 'cancel') {
+      if (Number(order.checkout_lock_until || 0) > Date.now()) return Response.json({ error: 'O checkout está sendo preparado. Aguarde antes de cancelar.' }, { status: 409 });
       if (order.payment_status === 'paid') return Response.json({ error: 'Estorne o pagamento no Stripe antes de cancelar.' }, { status: 409 });
       if (order.stock_reserved && !order.payment_reference) return Response.json({ error: 'A tentativa de pagamento ainda precisa ser conciliada. Tente novamente pelo checkout antes de cancelar.' }, { status: 409 });
       if (order.payment_reference?.startsWith('cs_')) {

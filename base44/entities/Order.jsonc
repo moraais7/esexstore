@@ -187,6 +187,14 @@
     },
     "checkout_cancel_token": {
       "type": "string"
+    },
+    "checkout_lock_until": {
+      "type": "number",
+      "default": 0
+    },
+    "checkout_lock_token": {
+      "type": "string",
+      "default": ""
     }
   },
   "required": [

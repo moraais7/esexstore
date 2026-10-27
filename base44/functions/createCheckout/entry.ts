@@ -8,6 +8,7 @@ export default async function (req) {
   let order;
   let base44;
   let stripeAttempted = false;
+  let lockToken;
   try {
     if (req.method !== 'POST') return Response.json({ error: 'Method not allowed' }, { status: 405 });
     const body = await req.json().catch(() => ({}));
@@ -51,12 +52,17 @@ export default async function (req) {
         currency: 'BRL', status: 'pending_payment', payment_status: 'pending', payment_provider: 'stripe',
         shipping_status: 'quoted', shipping_method: [option.company, option.name].filter(Boolean).join(' — '),
         shipping_delivery_days: option.delivery_days, shipping_address: customer.shipping,
-        stock_committed: false, stock_reserved: true, checkout_fingerprint: fingerprint, checkout_cancel_token: crypto.randomUUID(),
+        stock_committed: false, stock_reserved: false, checkout_lock_until: 0, checkout_lock_token: "", checkout_fingerprint: fingerprint, checkout_cancel_token: crypto.randomUUID(),
         checkout_origin: origin, checkout_expires_at: new Date(Date.now() + 31 * 60 * 1000).toISOString(),
       });
       await service.entities.ShippingQuote.update(quote.id, { checkout_order_id: order.id });
     }
-    await reserveOrderStock(base44, order);
+    lockToken = crypto.randomUUID();
+    const locked = await service.entities.Order.updateMany(
+      { id: order.id, checkout_lock_until: { $lte: Date.now() }, payment_status: 'pending', status: { $ne: 'cancelled' } },
+      { $set: { checkout_lock_until: Date.now() + 180000, checkout_lock_token: lockToken } }
+    );
+    if (locked.updated !== 1) throw new CheckoutError('O pagamento está sendo preparado. Aguarde e tente novamente.', 409);
     const params = new URLSearchParams({
       mode: 'payment', locale: 'pt-BR', customer_email: order.customer_email,
       success_url: `${order.checkout_origin}/pedido/sucesso?session_id={CHECKOUT_SESSION_ID}`,
@@ -85,14 +91,37 @@ export default async function (req) {
     const session = await response.json();
     if (!response.ok) {
       // 5xx is ambiguous: retry with the same idempotency key, keeping the reservation.
-      if (response.status < 500) {
+      if (response.status < 500 && ![409, 429].includes(response.status) && !order.payment_reference) {
         await cancelOrder(base44, order, 'Falha ao iniciar o pagamento.');
         await service.entities.Order.update(order.id, { payment_status: 'failed' });
       }
       throw new CheckoutError('Não foi possível abrir o pagamento. Tente novamente; se persistir, recalcule o frete.', 502);
     }
     if (!session.url || !session.id) throw new CheckoutError('Resposta incompleta do pagamento. Tente novamente.', 502);
-    await service.entities.Order.update(order.id, { payment_reference: session.id, checkout_url: session.url });
+    // Persist a recoverable Stripe reference before touching stock. A timeout
+    // before session creation can never strand a reservation without a session.
+    const referenced = await service.entities.Order.updateMany(
+      { id: order.id, checkout_lock_token: lockToken, payment_status: 'pending', status: { $ne: 'cancelled' } },
+      { $set: { payment_reference: session.id, stock_reserved: true } }
+    );
+    if (referenced.updated !== 1) throw new CheckoutError('A tentativa mudou de estado. Confira o pedido antes de continuar.', 409);
+    order = await service.entities.Order.get(order.id);
+    try {
+      await reserveOrderStock(base44, order);
+    } catch (stockError) {
+      // The URL has not been returned. Close it before rolling back any partial
+      // reservation. If Stripe is unreachable, keep the reference for recovery.
+      const closed = await fetch(`https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(session.id)}/expire`, {
+        method: 'POST', headers: { Authorization: `Bearer ${stripeSecret}` }, signal: AbortSignal.timeout(10000),
+      });
+      if (closed.ok) await cancelOrder(base44, order, 'Não foi possível reservar todos os produtos.');
+      throw new CheckoutError(closed.ok ? 'O estoque mudou. Atualize o carrinho e calcule o frete novamente.' : 'A loja precisa conferir a tentativa de pagamento. Tente novamente em instantes.', 409);
+    }
+    const ready = await service.entities.Order.updateMany(
+      { id: order.id, checkout_lock_token: lockToken, payment_status: 'pending', status: { $ne: 'cancelled' }, stock_committed: true },
+      { $set: { checkout_url: session.url } }
+    );
+    if (ready.updated !== 1) throw new CheckoutError('Não foi possível liberar o checkout. Confira a situação do pedido.', 409);
     return Response.json({ url: session.url, order_id: order.id, order_number: order.order_number });
   } catch (error) {
     console.error('createCheckout', error.message);
@@ -100,5 +129,10 @@ export default async function (req) {
       await cancelOrder(base44, order, 'Não foi possível reservar os produtos.').catch(e => console.error('rollback', e.message));
     }
     return Response.json({ error: error instanceof CheckoutError ? error.message : 'Não foi possível iniciar o pagamento. Verifique o estoque e tente novamente.' }, { status: error instanceof CheckoutError ? error.status : 500 });
+  } finally {
+    if (order && base44 && lockToken) await base44.asServiceRole.entities.Order.updateMany(
+      { id: order.id, checkout_lock_token: lockToken },
+      { $set: { checkout_lock_until: 0, checkout_lock_token: '' } }
+    ).catch(error => console.error('checkout lock release', error.message));
   }
 }
