@@ -15,6 +15,9 @@ export default function AdminSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
+  const [repairing, setRepairing] = useState(false);
+  const [repairResult, setRepairResult] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -29,6 +32,7 @@ export default function AdminSettings() {
           setSettings({ ...DEFAULT_SETTINGS });
         }
       })
+      .catch(() => { setError("Não foi possível carregar as configurações."); })
       .finally(() => {
         if (active) setLoading(false);
       });
@@ -42,8 +46,10 @@ export default function AdminSettings() {
   const save = async (event) => {
     event.preventDefault();
     setSaving(true);
-    setSaved(false);
+    setSaved(false); setError("");
     try {
+      if (settings.shipping_configured && settings.shipping_provider === "melhor_envio" && digitsOnly(settings.shipping_origin_postal_code).length !== 8) throw new Error("Informe o CEP de origem com 8 dígitos.");
+      if (settings.shipping_configured && settings.shipping_provider === "fixed" && (settings.shipping_fixed_price === "" || settings.shipping_fixed_price == null || !Number.isFinite(Number(settings.shipping_fixed_price)) || Number(settings.shipping_fixed_price) < 0 || !Number.isInteger(Number(settings.shipping_fixed_days)) || Number(settings.shipping_fixed_days) < 1)) throw new Error("Informe a tarifa e um prazo de entrega válido.");
       const payload = {
         key: "main",
         store_name: settings.store_name,
@@ -60,6 +66,11 @@ export default function AdminSettings() {
         payments_note: settings.payments_note,
         shipping_configured: Boolean(settings.shipping_configured),
         shipping_note: settings.shipping_note,
+        shipping_provider: settings.shipping_provider,
+        shipping_origin_postal_code: digitsOnly(settings.shipping_origin_postal_code),
+        shipping_sandbox: Boolean(settings.shipping_sandbox),
+        ...(settings.shipping_fixed_price !== "" && settings.shipping_fixed_price != null ? { shipping_fixed_price: Number(settings.shipping_fixed_price) } : {}),
+        ...(settings.shipping_fixed_days !== "" && settings.shipping_fixed_days != null ? { shipping_fixed_days: Number(settings.shipping_fixed_days) } : {}),
         demo_mode: Boolean(settings.demo_mode),
       };
       if (recordId) {
@@ -69,9 +80,25 @@ export default function AdminSettings() {
         setRecordId(created.id);
       }
       setSaved(true);
+    } catch (err) {
+      setError(err?.response?.data?.error || err.message || "Não foi possível salvar.");
     } finally {
       setSaving(false);
     }
+  };
+
+  const repairVariants = async () => {
+    setRepairing(true); setRepairResult(""); setError("");
+    try {
+      let cursor;
+      let fixed = 0; let unresolved = 0;
+      do {
+        const { data } = await base44.functions.invoke("relinkVariants", { cursor });
+        fixed += data.fixed; unresolved += data.unresolved; cursor = data.next_cursor;
+      } while (cursor);
+      setRepairResult(`${fixed} vínculo(s) corrigido(s). ${unresolved} variação(ões) precisam de revisão manual.`);
+    } catch (err) { setError(err?.response?.data?.error || err.message); }
+    finally { setRepairing(false); }
   };
 
   const field = "rounded-xl border-white/15 bg-white/5 text-background placeholder:text-background/40";
@@ -101,6 +128,7 @@ export default function AdminSettings() {
         </div>
       </div>
 
+      {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       <section className="grid gap-6 lg:grid-cols-2">
         <div className="space-y-6">
           <div>
@@ -159,8 +187,7 @@ export default function AdminSettings() {
       <section className="space-y-4 border-t border-white/10 pt-8">
         <h2 className="font-heading text-2xl">Pagamento e frete</h2>
         <p className="text-sm text-background/60">
-          O checkout usa o Stripe para cobrar os produtos. O frete ainda não tem cálculo automático: enquanto não houver uma
-          integração de frete configurada, o valor é combinado com o cliente e registrado no pedido pelo painel.
+          O checkout cobra produtos e frete juntos pelo Stripe. Habilite o pagamento após configurar as credenciais e o webhook no Base44. O frete precisa estar habilitado para aceitar compras.
         </p>
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="space-y-3 border border-white/10 p-4">
@@ -187,9 +214,26 @@ export default function AdminSettings() {
               className={field}
             />
             <p className="text-xs text-background/45">
-              Enquanto esta opção estiver desligada, o site informa que o frete será combinado, sem simular valores de entrega.
+              Com o frete desligado, novas compras ficam bloqueadas até a configuração da entrega.
             </p>
           </div>
+        </div>
+        <div className="grid gap-5 border border-white/10 p-4 lg:grid-cols-2">
+          <div><Label className={label}>Serviço de frete</Label><select value={settings.shipping_provider} onChange={e => update("shipping_provider", e.target.value)} className={`mt-2 w-full rounded-xl p-3 ${field}`}><option className="text-black" value="melhor_envio">Melhor Envio — cotação por CEP</option><option className="text-black" value="fixed">Tarifa única — todos os CEPs do Brasil</option></select></div>
+          {settings.shipping_provider === "melhor_envio" ? <>
+            <div><Label className={label}>CEP de origem</Label><Input value={settings.shipping_origin_postal_code || ""} onChange={e => update("shipping_origin_postal_code", e.target.value)} maxLength={9} className={`mt-2 ${field}`} /></div>
+            <div className="flex items-center justify-between gap-4"><span className="text-sm">Melhor Envio em sandbox (teste)</span><Switch checked={Boolean(settings.shipping_sandbox)} onCheckedChange={value => update("shipping_sandbox", value)} /></div>
+            <p className="text-xs text-background/60">Cadastre MELHOR_ENVIO_TOKEN e MELHOR_ENVIO_CONTACT nos segredos do Base44. Confira peso e medidas de cada variação. Cotações de teste não aceitam cobranças reais.</p>
+          </> : <>
+            <div><Label className={label}>Tarifa da loja (R$)</Label><Input type="number" min="0" step="0.01" value={settings.shipping_fixed_price ?? ""} onChange={e => update("shipping_fixed_price", e.target.value)} className={`mt-2 ${field}`} /></div>
+            <div><Label className={label}>Prazo de transporte (dias úteis)</Label><Input type="number" min="1" step="1" value={settings.shipping_fixed_days ?? ""} onChange={e => update("shipping_fixed_days", e.target.value)} className={`mt-2 ${field}`} /></div>
+            <p className="text-xs text-background/60">Use apenas se a loja puder atender todos os CEPs com este preço e prazo. Zero significa frete grátis.</p>
+          </>}
+        </div>
+        <div className="space-y-3 border border-white/10 p-4">
+          <p className="text-sm">Confirmação por e-mail</p><p className="text-xs text-background/60">Configure RESEND_API_KEY e ORDER_EMAIL_FROM (remetente com domínio verificado) nos segredos do Base44. A confirmação será enviada após o pagamento aprovado. Falhas ficam registradas no pedido.</p>
+          <Button type="button" variant="outline" className="rounded-xl bg-transparent" disabled={repairing} onClick={repairVariants}>{repairing ? "Verificando catálogo…" : "Corrigir vínculos das variações importadas"}</Button>
+          {repairResult && <p role="status" className="text-xs text-gold">{repairResult}</p>}
         </div>
         <div className="flex items-center justify-between border border-white/10 px-4 py-3">
           <div>

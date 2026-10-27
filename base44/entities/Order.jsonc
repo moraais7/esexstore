@@ -159,6 +159,42 @@
     },
     "admin_notes": {
       "type": "string"
+    },
+    "payment_intent": {
+      "type": "string"
+    },
+    "checkout_fingerprint": {
+      "type": "string"
+    },
+    "checkout_origin": {
+      "type": "string"
+    },
+    "checkout_expires_at": {
+      "type": "string"
+    },
+    "confirmation_email_sent_at": {
+      "type": "string"
+    },
+    "confirmation_email_error": {
+      "type": "string"
+    },
+    "shipping_delivery_days": {
+      "type": "number"
+    },
+    "stock_reserved": {
+      "type": "boolean",
+      "default": false
+    },
+    "checkout_cancel_token": {
+      "type": "string"
+    },
+    "checkout_lock_until": {
+      "type": "number",
+      "default": 0
+    },
+    "checkout_lock_token": {
+      "type": "string",
+      "default": ""
     }
   },
   "required": [
