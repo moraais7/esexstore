@@ -1,6 +1,6 @@
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
-import { Lock, ShieldCheck, Truck } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { Lock, ShieldCheck } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import ProductMedia from "@/components/store/ProductMedia";
 import { useCart } from "@/context/CartContext";
-import { useStoreSettings } from "@/hooks/useStoreSettings";
+import ShippingSelector from "@/components/store/ShippingSelector";
+import { savedShippingCep, useShipping } from "@/hooks/useShipping";
 import { brl } from "@/lib/format";
 
 const FIELDS = [
@@ -20,18 +21,35 @@ const FIELDS = [
   { name: "street", label: "Endereço", required: true, autoComplete: "address-line1" },
   { name: "number", label: "Número", required: true },
   { name: "complement", label: "Complemento" },
-  { name: "district", label: "Bairro" },
+  { name: "district", label: "Bairro", required: true },
   { name: "city", label: "Cidade", required: true, autoComplete: "address-level2" },
-  { name: "state", label: "Estado", required: true, autoComplete: "address-level1" },
+  { name: "state", label: "Estado (UF)", required: true, autoComplete: "address-level1" },
 ];
 
 export default function Checkout() {
-  const { items, subtotal, clear } = useCart();
-  const { settings } = useStoreSettings();
-  const [form, setForm] = useState({});
+  const { items, subtotal } = useCart();
+  const [params, setParams] = useSearchParams();
+  const [form, setForm] = useState(() => ({ name: "", email: "", phone: "", document: "", postal_code: savedShippingCep(), street: "", number: "", complement: "", district: "", city: "", state: "" }));
+  const shipping = useShipping(items, form.postal_code);
   const [notes, setNotes] = useState("");
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const cancelToken = params.get("cancel_token");
+  const [cancelling, setCancelling] = useState(Boolean(cancelToken));
+  useEffect(() => {
+    if (!cancelToken) return undefined;
+    let active = true;
+    setCancelling(true);
+    base44.functions.invoke("cancelCheckout", { token: cancelToken })
+      .then(({ data }) => {
+        if (!active) return;
+        if (!data.cancelled) setError("O pagamento anterior pode estar em processamento. Confira a situação com a loja antes de tentar outra compra.");
+        const next = new URLSearchParams(window.location.search); next.delete("cancel_token"); setParams(next, { replace: true });
+      })
+      .catch(err => { if (active) setError(err?.response?.data?.error || "Não foi possível encerrar o pagamento anterior."); })
+      .finally(() => { if (active) setCancelling(false); });
+    return () => { active = false; };
+  }, [cancelToken, setParams]);
 
   const update = (name, value) => setForm((previous) => ({ ...previous, [name]: value }));
 
@@ -45,6 +63,7 @@ export default function Checkout() {
       return;
     }
 
+    if (!shipping.option) { setError("Calcule e selecione o frete antes de continuar."); return; }
     const isFramed = window.self !== window.top;
     const checkoutTab = isFramed ? window.open("", "_blank") : null;
     if (isFramed && !checkoutTab) {
@@ -57,6 +76,8 @@ export default function Checkout() {
     try {
       const response = await base44.functions.invoke("createCheckout", {
         items: items.map((item) => ({ variant_id: item.variant_id, quantity: item.quantity })),
+        shipping_quote_token: shipping.quote.token,
+        shipping_option_id: shipping.option.id,
         customer: {
           name: form.name,
           email: form.email,
@@ -76,7 +97,7 @@ export default function Checkout() {
       });
       const data = response?.data || {};
       if (!data.url) throw new Error(data.error || "Não foi possível iniciar o pagamento.");
-      clear();
+
       if (checkoutTab) checkoutTab.location.replace(data.url);
       else window.location.assign(data.url);
     } catch (err) {
@@ -88,6 +109,8 @@ export default function Checkout() {
       setSubmitting(false);
     }
   };
+
+  const displayItems = items.map(item => ({ ...item, ...shipping.quote?.items?.find(line => line.variant_id === item.variant_id) }));
 
   if (!items.length) {
     return (
@@ -107,6 +130,8 @@ export default function Checkout() {
       <p className="eyebrow">Checkout</p>
       <h1 className="mt-2 font-heading text-3xl sm:text-4xl">Dados para entrega e contato</h1>
 
+      {params.get("cancelled") && <p role="status" className="mt-5 rounded-xl border border-border p-4 text-sm">O pagamento não foi concluído. Seu carrinho foi preservado. Confira os dados e calcule o frete para tentar novamente.</p>}
+
       <form onSubmit={handleSubmit} className="mt-10 grid gap-12 lg:grid-cols-[1fr_380px]">
         <div className="space-y-10">
           <div className="grid gap-5 sm:grid-cols-2">
@@ -119,6 +144,8 @@ export default function Checkout() {
                   id={field.name}
                   type={field.type || "text"}
                   autoComplete={field.autoComplete}
+                  maxLength={field.name === "state" ? 2 : field.name === "postal_code" ? 9 : 160}
+                  inputMode={field.name === "postal_code" || field.name === "phone" ? "numeric" : undefined}
                   value={form[field.name] || ""}
                   onChange={(event) => update(field.name, event.target.value)}
                   className="mt-2 rounded-xl"
@@ -146,26 +173,17 @@ export default function Checkout() {
               <ShieldCheck className="mt-0.5 h-4 w-4 text-gold" strokeWidth={1.6} />
               <div>
                 <p className="text-sm font-medium">Pagamento pelo Stripe</p>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  Você será levado para o ambiente seguro do Stripe para concluir o pagamento com cartão.
-                  {settings.payments_configured ? " O ambiente está em modo de teste até a loja entrar no ar." : ""}
-                </p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Você será levado ao ambiente seguro do Stripe. As formas de pagamento disponíveis serão exibidas lá.</p>
               </div>
             </div>
-            <div className="flex items-start gap-3">
-              <Truck className="mt-0.5 h-4 w-4 text-gold" strokeWidth={1.6} />
-              <div>
-                <p className="text-sm font-medium">Frete ainda não calculado</p>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{settings.shipping_note}</p>
-              </div>
-            </div>
+            <ShippingSelector shipping={shipping} postalCode={form.postal_code || ""} onPostalCodeChange={value => update("postal_code", value)} showInput={false} />
           </div>
         </div>
 
         <aside className="cine-panel h-fit p-6 lg:sticky lg:top-32">
           <h2 className="font-heading text-2xl">Resumo do pedido</h2>
           <div className="mt-6 space-y-4">
-            {items.map((item) => (
+            {displayItems.map((item) => (
               <div key={item.variant_id} className="flex gap-4">
                 <div className="relative h-16 w-14 shrink-0 overflow-hidden rounded-lg bg-clay">
                   <ProductMedia src={item.image_url} alt={item.product_name} placeholderLabel="" />
@@ -183,21 +201,21 @@ export default function Checkout() {
           <div className="mt-6 space-y-2 border-t border-border pt-4 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Subtotal</span>
-              <span>{brl(subtotal)}</span>
+              <span>{brl(shipping.quote?.subtotal ?? subtotal)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Frete</span>
-              <span className="text-xs text-muted-foreground">a combinar</span>
+              <span className="text-xs text-muted-foreground">{shipping.option ? brl(shipping.option.price) : "selecione a entrega"}</span>
             </div>
             <div className="flex justify-between border-t border-border pt-3 font-medium">
-              <span>Total de produtos</span>
-              <span>{brl(subtotal)}</span>
+              <span>{shipping.option ? "Total com frete" : "Subtotal de produtos"}</span>
+              <span>{brl((shipping.quote?.subtotal ?? subtotal) + (shipping.option?.price || 0))}</span>
             </div>
           </div>
 
           {error && <p className="mt-4 rounded-xl border border-destructive/40 bg-destructive/5 p-3 text-xs text-destructive">{error}</p>}
 
-          <Button type="submit" className="mt-6 h-12 w-full rounded-xl" disabled={submitting}>
+          <Button type="submit" className="mt-6 h-12 w-full rounded-xl" disabled={submitting || cancelling || shipping.loading || !shipping.option}>
             {submitting ? (
               "Abrindo o pagamento…"
             ) : (

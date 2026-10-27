@@ -16,7 +16,12 @@ export const DEFAULT_SETTINGS = {
   payments_configured: false,
   payments_note: "O meio de pagamento ainda não está configurado: os pedidos ficam aguardando a definição do pagamento.",
   shipping_configured: false,
-  shipping_note: "As regras de frete ainda não estão configuradas: o valor do envio será combinado depois, sem cobrança automática.",
+  shipping_provider: "melhor_envio",
+  shipping_origin_postal_code: "",
+  shipping_sandbox: false,
+  shipping_fixed_price: null,
+  shipping_fixed_days: null,
+  shipping_note: "Calcule as opções de entrega pelo CEP no carrinho ou no checkout.",
   demo_mode: true,
 };
 

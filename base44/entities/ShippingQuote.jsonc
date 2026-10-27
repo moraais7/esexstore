@@ -1,0 +1,80 @@
+{
+  "name": "ShippingQuote",
+  "type": "object",
+  "properties": {
+    "token": {
+      "type": "string"
+    },
+    "postal_code": {
+      "type": "string"
+    },
+    "cart_fingerprint": {
+      "type": "string"
+    },
+    "settings_fingerprint": {
+      "type": "string"
+    },
+    "expires_at": {
+      "type": "string"
+    },
+    "checkout_order_id": {
+      "type": "string"
+    },
+    "subtotal": {
+      "type": "number"
+    },
+    "sandbox": {
+      "type": "boolean",
+      "default": false
+    },
+    "options": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "company": {
+            "type": "string"
+          },
+          "price": {
+            "type": "number"
+          },
+          "delivery_days": {
+            "type": "number"
+          }
+        }
+      }
+    }
+  },
+  "required": [
+    "token",
+    "expires_at"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

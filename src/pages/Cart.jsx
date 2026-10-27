@@ -1,15 +1,19 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ProductMedia from "@/components/store/ProductMedia";
 import { useCart } from "@/context/CartContext";
-import { useStoreSettings } from "@/hooks/useStoreSettings";
+import ShippingSelector from "@/components/store/ShippingSelector";
+import { savedShippingCep, useShipping } from "@/hooks/useShipping";
 import { brl } from "@/lib/format";
 
 export default function Cart() {
   const { items, subtotal, updateQuantity, removeItem } = useCart();
-  const { settings } = useStoreSettings();
+  const [postalCode, setPostalCode] = useState(savedShippingCep);
+  const shipping = useShipping(items, postalCode);
+
+  const displayItems = items.map(item => ({ ...item, ...shipping.quote?.items?.find(line => line.variant_id === item.variant_id) }));
 
   if (!items.length) {
     return (
@@ -31,7 +35,7 @@ export default function Cart() {
 
       <div className="mt-10 grid gap-12 lg:grid-cols-[1fr_360px]">
         <div className="divide-y divide-border border-t border-border">
-          {items.map((item) => (
+          {displayItems.map((item) => (
             <div key={item.variant_id} className="flex gap-5 py-6">
               <Link to={`/produto/${item.product_slug}`} className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-clay">
                 <ProductMedia src={item.image_url} alt={item.product_name} placeholderLabel="Foto" />
@@ -58,8 +62,8 @@ export default function Cart() {
                     <button
                       type="button"
                       className="flex h-10 w-10 items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-40"
-                      onClick={() => updateQuantity(item.variant_id, Math.min(item.quantity + 1, item.max_stock || 99))}
-                      disabled={item.max_stock ? item.quantity >= item.max_stock : false}
+                      onClick={() => updateQuantity(item.variant_id, Math.min(item.quantity + 1, item.max_stock || 10, 10))}
+                      disabled={item.quantity >= Math.min(item.max_stock || 10, 10)}
                       aria-label="Aumentar quantidade"
                     >
                       <Plus className="h-4 w-4" strokeWidth={1.6} />
@@ -87,18 +91,18 @@ export default function Cart() {
           <div className="mt-6 space-y-3 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Subtotal</span>
-              <span>{brl(subtotal)}</span>
+              <span>{brl(shipping.quote?.subtotal ?? subtotal)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Frete</span>
-              <span className="text-right text-xs text-muted-foreground">a combinar</span>
+              <span className="text-right text-xs text-muted-foreground">{shipping.option ? brl(shipping.option.price) : "calcule abaixo"}</span>
             </div>
             <div className="flex justify-between border-t border-border pt-3 font-medium">
-              <span>Total</span>
-              <span>{brl(subtotal)}</span>
+              <span>{shipping.option ? "Total" : "Subtotal de produtos"}</span>
+              <span>{brl((shipping.quote?.subtotal ?? subtotal) + (shipping.option?.price || 0))}</span>
             </div>
           </div>
-          <p className="mt-4 text-xs leading-relaxed text-muted-foreground">{settings.shipping_note}</p>
+          <div className="mt-4"><ShippingSelector shipping={shipping} postalCode={postalCode} onPostalCodeChange={setPostalCode} /></div>
           <Button asChild className="mt-6 h-12 w-full rounded-xl">
             <Link to="/checkout">Finalizar compra</Link>
           </Button>

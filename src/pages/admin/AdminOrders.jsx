@@ -5,7 +5,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { brl, formatDateTime } from "@/lib/format";
@@ -43,6 +42,7 @@ export default function AdminOrders() {
   const [busy, setBusy] = useState(false);
   const [shipping, setShipping] = useState({ total: "", method: "", note: "" });
   const [notes, setNotes] = useState("");
+  const [error, setError] = useState("");
 
   const load = async () => {
     setLoading(true);
@@ -68,7 +68,7 @@ export default function AdminOrders() {
 
   const runAction = async (action, payload = {}) => {
     if (!selected) return;
-    setBusy(true);
+    setBusy(true); setError("");
     try {
       const response = await base44.functions.invoke("manageOrder", { order_id: selected.id, action, ...payload });
       const updated = response?.data?.order;
@@ -77,7 +77,7 @@ export default function AdminOrders() {
         setOrders((previous) => previous.map((order) => (order.id === updated.id ? updated : order)));
         setNotes(updated.admin_notes || "");
       }
-    } finally {
+    } catch (err) { setError(err?.response?.data?.error || err.message); } finally {
       setBusy(false);
     }
   };
@@ -106,6 +106,7 @@ export default function AdminOrders() {
         </Select>
       </div>
 
+      {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       <div className="overflow-x-auto border border-white/10">
         <table className="w-full min-w-[860px] text-sm">
           <thead className="border-b border-white/10 text-left text-[11px] uppercase tracking-[0.14em] text-background/45">
@@ -168,6 +169,8 @@ export default function AdminOrders() {
               </DialogHeader>
 
               <div className="space-y-6 text-sm">
+                {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
+                {selected.confirmation_email_error && <p className="text-xs text-destructive">E-mail: {selected.confirmation_email_error}</p>}
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
                     <p className={label}>Cliente</p>
@@ -215,7 +218,7 @@ export default function AdminOrders() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-background/60">Frete registrado</span>
-                      <span>{selected.shipping_total ? brl(selected.shipping_total) : "não definido"}</span>
+                      <span>{selected.shipping_status === "quote_pending" ? "não definido" : brl(selected.shipping_total)}</span>
                     </div>
                     <div className="flex justify-between font-medium">
                       <span>Total</span>
@@ -248,14 +251,12 @@ export default function AdminOrders() {
                         <SelectValue placeholder="Alterar situação" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="pending_payment">Aguardando pagamento</SelectItem>
-                        <SelectItem value="paid">Pago</SelectItem>
+                        <SelectItem value={selected.status} disabled>{statusLabel[selected.status]}</SelectItem>
                         <SelectItem value="awaiting_shipment">A enviar</SelectItem>
                         <SelectItem value="shipped">Enviado</SelectItem>
-                        <SelectItem value="cancelled">Cancelado</SelectItem>
                       </SelectContent>
                     </Select>
-                    {selected.payment_status !== "paid" && (
+                    {["pending", "failed"].includes(selected.payment_status) && selected.status !== "cancelled" && (
                       <Button
                         type="button"
                         disabled={busy}
@@ -269,7 +270,8 @@ export default function AdminOrders() {
                 </div>
 
                 <div className="space-y-3 border-t border-white/10 pt-5">
-                  <p className={label}>Registrar frete combinado</p>
+                  <p className={label}>Frete do pedido</p>
+                  <p className="text-xs text-background/60">{selected.shipping_method || "Sem modalidade definida"}{selected.shipping_delivery_days != null ? ` · ${selected.shipping_delivery_days} dia(s) útil(eis)` : ""}. O valor fica bloqueado após a emissão do checkout.</p>
                   <div className="grid gap-3 sm:grid-cols-3">
                     <Input
                       type="number"
@@ -295,13 +297,13 @@ export default function AdminOrders() {
                   <Button
                     type="button"
                     variant="outline"
-                    disabled={busy}
                     className="rounded-xl border-white/20 bg-transparent text-background hover:bg-white/10"
+                    disabled={busy || Boolean(selected.payment_reference) || Boolean(selected.stock_reserved) || selected.payment_status === "paid"}
                     onClick={() =>
                       runAction("set_shipping", {
                         shipping_total: Number(shipping.total) || 0,
                         shipping_method: shipping.method,
-                        shipping_status: shipping.total ? "quoted" : "arrange",
+                        shipping_status: "quoted",
                         note: shipping.note,
                       })
                     }

@@ -30,18 +30,18 @@ export function CartProvider({ children }) {
       if (existing) {
         return previous.map((entry) =>
           entry.variant_id === item.variant_id
-            ? { ...entry, quantity: Math.min(entry.quantity + quantity, Math.max(1, item.max_stock || 99)) }
+            ? { ...entry, quantity: Math.min(entry.quantity + quantity, Math.min(10, Math.max(1, item.max_stock || 10))) }
             : entry
         );
       }
-      return [...previous, { ...item, quantity }];
+      return [...previous, { ...item, quantity: Math.min(10, Math.max(1, Math.floor(quantity)), item.max_stock || 10) }];
     });
   };
 
   const updateQuantity = (variantId, quantity) => {
     setItems((previous) =>
       previous
-        .map((entry) => (entry.variant_id === variantId ? { ...entry, quantity } : entry))
+        .map((entry) => (entry.variant_id === variantId ? { ...entry, quantity: Math.min(10, Math.floor(quantity), entry.max_stock || 10) } : entry))
         .filter((entry) => entry.quantity > 0)
     );
   };
@@ -49,11 +49,15 @@ export function CartProvider({ children }) {
   const removeItem = (variantId) => setItems((previous) => previous.filter((entry) => entry.variant_id !== variantId));
 
   const clear = () => setItems([]);
+  const removePurchased = (purchased) => setItems(previous => previous.map(item => {
+    const bought = purchased.find(line => line.variant_id === item.variant_id);
+    return bought ? { ...item, quantity: Math.max(0, item.quantity - bought.quantity) } : item;
+  }).filter(item => item.quantity > 0));
 
   const value = useMemo(() => {
     const count = items.reduce((total, item) => total + item.quantity, 0);
     const subtotal = items.reduce((total, item) => total + Number(item.unit_price || 0) * item.quantity, 0);
-    return { items, count, subtotal, addItem, updateQuantity, removeItem, clear };
+    return { items, count, subtotal, addItem, updateQuantity, removeItem, clear, removePurchased };
   }, [items]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

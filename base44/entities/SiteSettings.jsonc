@@ -53,6 +53,27 @@
     "demo_mode": {
       "type": "boolean",
       "default": true
+    },
+    "shipping_provider": {
+      "type": "string",
+      "enum": [
+        "melhor_envio",
+        "fixed"
+      ],
+      "default": "melhor_envio"
+    },
+    "shipping_origin_postal_code": {
+      "type": "string"
+    },
+    "shipping_sandbox": {
+      "type": "boolean",
+      "default": false
+    },
+    "shipping_fixed_price": {
+      "type": "number"
+    },
+    "shipping_fixed_days": {
+      "type": "number"
     }
   },
   "required": [
