@@ -117,7 +117,14 @@
       "type": "string"
     },
     "cost": {
-      "type": "number"
+      "type": "number",
+      "rls": {
+        "read": {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      }
     },
     "physical": {
       "type": "boolean",

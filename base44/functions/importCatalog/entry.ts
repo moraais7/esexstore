@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.54';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.57';
 
 const MAX_BATCH = 60;
 const MAX_ERRORS = 60;
@@ -124,6 +124,16 @@ export default async function (req) {
         ? draft.variants
         : [{ sku: `${slug}-unico`, stock: 0 }];
 
+      const existingVariants = variantsByProduct.get(existing?.id) || [];
+      const sameOptions = (a, b) => [1, 2, 3].every(slot => text(a[`option${slot}_value`], 80).trim() === text(b[`option${slot}_value`], 80).trim());
+      const ambiguous = incomingVariants.some(variant => existingVariants.filter(saved =>
+        String(saved.sku || '').toUpperCase() === text(variant.sku, 120).trim().toUpperCase() && sameOptions(saved, variant)
+      ).length > 1);
+      if (ambiguous) {
+        addError(0, 'variacao_ambigua', `"${name}" tem SKU e opções duplicados no banco — nenhum dado deste produto foi alterado.`);
+        continue;
+      }
+
       const listPrices = incomingVariants.map((variant) => numberOrNull(variant.price)).filter(Boolean);
       const promoPrices = incomingVariants
         .map((variant) => numberOrNull(variant.promo_price) || numberOrNull(variant.price))
@@ -168,8 +178,6 @@ export default async function (req) {
         summary.products_created += 1;
       }
 
-      const existingVariants = variantsByProduct.get(productId) || [];
-      const variantBySku = new Map(existingVariants.map((variant) => [String(variant.sku || '').toUpperCase(), variant]));
       const variantsToCreate = [];
       const variantsToUpdate = [];
 
@@ -193,14 +201,15 @@ export default async function (req) {
         };
         const price = numberOrNull(variant.price);
         const promo = numberOrNull(variant.promo_price);
-        if (price) variantPayload.price = price;
-        if (promo) variantPayload.promo_price = promo;
+        variantPayload.price = price;
+        variantPayload.promo_price = price && promo && promo < price ? promo : null;
         ['weight_kg', 'height_cm', 'width_cm', 'length_cm'].forEach((field) => {
           const value = Number(variant[field]);
           if (Number.isFinite(value) && value > 0) variantPayload[field] = value;
         });
 
-        const found = variantBySku.get(sku.toUpperCase());
+        const candidates = existingVariants.filter(existingVariant => String(existingVariant.sku || '').toUpperCase() === sku.toUpperCase() && sameOptions(existingVariant, variantPayload));
+        const found = candidates[0];
         if (found) variantsToUpdate.push({ ...variantPayload, id: found.id });
         else variantsToCreate.push(variantPayload);
       }
