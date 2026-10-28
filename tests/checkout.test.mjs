@@ -139,6 +139,33 @@ test('two customers cannot reserve the same last unit; retries cannot double dec
   await expireOrder(client, winner); await expireOrder(client, winner); assert.equal(db.ProductVariant[0].stock, 1);
 });
 
+test('expiry during a multi-item reservation cannot leave later items reserved', async () => {
+  const { db, client, entities } = fixture();
+  db.ProductVariant.push({ ...clone(db.ProductVariant[0]), id: 'v2', sku: 'SKU2' });
+  mockStripe();
+  const items = [{ variant_id: 'v1', quantity: 1 }, { variant_id: 'v2', quantity: 1 }];
+  const quoteResponse = await quoteShipping(post({ items, postal_code: shipping_address.postal_code }));
+  assert.equal(quoteResponse.status, 200);
+  const quote = await quoteResponse.json();
+  const updateVariants = entities.ProductVariant.updateMany;
+  let expired = false;
+  entities.ProductVariant.updateMany = async (query, operations) => {
+    const result = await updateVariants(query, operations);
+    if (!expired && operations.$inc?.stock === -1) {
+      expired = true;
+      await expireOrder(client, clone(db.Order[0]), 'Expired while reserving');
+    }
+    return result;
+  };
+  const response = await createCheckout(post({ items, customer, shipping_address, shipping_quote_token: quote.token, shipping_option_id: 'fixed' }));
+  assert.equal(response.status, 409);
+  assert.deepEqual(db.ProductVariant.map(variant => variant.stock), [5, 5]);
+  assert.ok(db.ProductVariant.every(variant => !variant.stock_order_ids?.length));
+  assert.equal(db.Order[0].stock_committed, false);
+  assert.equal(db.Order[0].status, 'cancelled');
+  assert.equal(db.Order[0].checkout_url, undefined);
+});
+
 test('signed webhook confirms once, sends once, rejects wrong totals and protects paid order from expiry', async () => {
   const { db, client } = fixture(); mockStripe(); const body = await quoted(); await createCheckout(post(body));
   const wrong = paidEvent(db.Order[0]); wrong.data.object.amount_total = 1;

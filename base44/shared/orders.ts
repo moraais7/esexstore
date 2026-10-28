@@ -35,7 +35,16 @@ export async function reserveOrderStock(base44, order) {
       if (!current.stock_order_ids?.includes(order.id)) throw new Error(`Estoque insuficiente: ${item.product_name}.`);
     }
   }
-  await service.entities.Order.update(order.id, { stock_committed: true, stock_reserved: true });
+  // Expiration can release an early item while this loop is still reserving
+  // later ones. Commit only while the order can still retain its stock.
+  const committed = await service.entities.Order.updateMany(
+    { id: order.id, payment_status: { $in: ['pending', 'failed', 'paid'] }, status: { $ne: 'cancelled' } },
+    { $set: { stock_committed: true, stock_reserved: true } }
+  );
+  if (committed.updated !== 1) {
+    await releaseOrderStock(base44, { ...order, stock_reserved: true });
+    throw new Error('O pedido foi encerrado durante a reserva dos produtos.');
+  }
   await refreshProducts(service, order.items || []);
 }
 
