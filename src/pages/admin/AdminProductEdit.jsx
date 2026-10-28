@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import ImageListEditor from "@/components/admin/ImageListEditor";
 import VariantEditor, { emptyVariant } from "@/components/admin/VariantEditor";
 import { slugify } from "@/lib/format";
+import { variantNumericFields } from "@/lib/variantNumericFields";
 
 const EMPTY_FORM = {
   name: "",
@@ -182,14 +183,7 @@ export default function AdminProductEdit() {
           active: true,
           position: index,
         };
-        const price = num(variant.price);
-        const promo = num(variant.promo_price);
-        if (price) variantPayload.price = price;
-        if (promo) variantPayload.promo_price = promo;
-        ["weight_kg", "height_cm", "width_cm", "length_cm"].forEach((field) => {
-          const value = Number(variant[field]);
-          if (Number.isFinite(value) && value > 0) variantPayload[field] = value;
-        });
+        Object.assign(variantPayload, variantNumericFields(variant));
         if (variant.id) await base44.entities.ProductVariant.update(variant.id, variantPayload);
         else await base44.entities.ProductVariant.create(variantPayload);
       }

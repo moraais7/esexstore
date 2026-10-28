@@ -118,6 +118,19 @@ test('disabled/unconfigured shipping blocks checkout and missing dimensions neve
   await assert.rejects(shippingOptions(cart, '31000000', settings, () => 'secret'), /peso e medidas/);
 });
 
+test('test freight cannot start a real Stripe payment or reserve inventory', async () => {
+  const { db } = fixture();
+  const calls = mockStripe();
+  const body = await quoted();
+  db.ShippingQuote[0].sandbox = true;
+  globalThis.__checkoutSecrets.STRIPE_SECRET_KEY = 'sk_live_test_only_placeholder';
+  const response = await createCheckout(post(body));
+  assert.equal(response.status, 409);
+  assert.equal(calls.length, 0);
+  assert.equal(db.Order.length, 0);
+  assert.equal(db.ProductVariant[0].stock, 5);
+});
+
 test('Melhor Envio uses custom price/time, drops unavailable carriers, sends kg/cm and unit insurance', async () => {
   const cart = { orderItems: [{ variant_id: 'v1', product_name: 'Produto', quantity: 2, unit_price: 10 }], variants: [{ weight_kg: .2, height_cm: 5, width_cm: 10, length_cm: 16 }] };
   const options = await shippingOptions(cart, '31000000', { shipping_configured: true, shipping_provider: 'melhor_envio', shipping_origin_postal_code: '32000000' }, () => 'secret', async (url, init) => {
