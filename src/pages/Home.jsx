@@ -1,16 +1,16 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, MessageCircle, ShieldCheck, Truck } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { store } from "@/api/storeClient";
 import { Image } from "@/components/ui/image";
 import { Skeleton } from "@/components/ui/skeleton";
 import ProductCard from "@/components/store/ProductCard";
 import { useStoreSettings } from "@/hooks/useStoreSettings";
 import { whatsappLink } from "@/lib/format";
 
-const HERO_IMAGE = "https://base44.app/api/apps/6adfa4dcd5a6331f0bfc3bfa/files/mp/public/6adfa4dcd5a6331f0bfc3bfa/8cebe7e33_esex-banner-desktop.jpg";
-const HERO_IMAGE_MOBILE = "https://base44.app/api/apps/6adfa4dcd5a6331f0bfc3bfa/files/mp/public/6adfa4dcd5a6331f0bfc3bfa/59a5fe5a9_esex-banner-mobile.jpg";
-const BRAND_IMAGE = "https://base44.app/api/apps/6adfa4dcd5a6331f0bfc3bfa/files/mp/public/6adfa4dcd5a6331f0bfc3bfa/062473ca6_esex-boutique.webp";
+const HERO_IMAGE = "/media/hero-desktop.jpg";
+const HERO_IMAGE_MOBILE = "/media/hero-mobile.jpg";
+const BRAND_IMAGE = "/media/brand.webp";
 
 const SEALS = [
 { icon: ShieldCheck, title: "Pagamento seguro", text: "Processado pelo Stripe, sem guardar dados do cartão na loja." },
@@ -29,17 +29,17 @@ export default function Home() {
     let active = true;
     const load = async () => {
       const [catPage, featuredPage] = await Promise.all([
-      base44.entities.Category.filter({ active: true }, { sort: "sort_order", limit: 60 }),
-      base44.entities.Product.filter({ visible: true, status: "active", featured: true }, { sort: "-created_date", limit: 8 })]
+      store.entities.Category.filter({ active: true }, { sort: "sort_order", limit: 60 }),
+      store.entities.Product.filter({ visible: true, status: "active", featured: true }, { sort: "-created_date", limit: 8 })]
       );
       let products = featuredPage.items || [];
       if (!products.length) {
-        const latest = await base44.entities.Product.filter({ visible: true, status: "active" }, { sort: "-created_date", limit: 8 });
+        const latest = await store.entities.Product.filter({ visible: true, status: "active" }, { sort: "-created_date", limit: 8 });
         products = latest.items || [];
       }
       const tops = (catPage.items || []).filter((category) => !category.parent_slug);
       const counts = await Promise.all(
-        tops.map((category) => base44.entities.Product.count({ visible: true, status: "active", categories: category.slug }).catch(() => 0))
+        tops.map((category) => store.entities.Product.count({ visible: true, status: "active", categories: category.slug }).catch(() => 0))
       );
       if (!active) return;
       setCategories(tops.map((category, index) => ({ ...category, count: counts[index] })));

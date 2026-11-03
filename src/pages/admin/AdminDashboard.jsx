@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { AlertTriangle, ArrowRight, ImageOff, PackageCheck, Receipt, Tags, Truck } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { store } from "@/api/storeClient";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useStoreSettings } from "@/hooks/useStoreSettings";
 import { brl, formatDateTime } from "@/lib/format";
@@ -26,15 +26,15 @@ export default function AdminDashboard() {
         productPage,
         orderPage,
       ] = await Promise.all([
-        base44.entities.Product.count({ visible: true, status: "active" }),
-        base44.entities.Product.count({ status: "draft" }),
-        base44.entities.Product.count({ needs_review: true }),
-        base44.entities.ProductVariant.count(),
-        base44.entities.Order.count({ payment_status: "pending" }),
-        base44.entities.Order.count({ payment_status: "paid" }),
-        base44.entities.Order.aggregate({ query: { payment_status: "paid" }, sum: ["total"] }),
-        base44.entities.Product.filter({}, { sort: "-created_date", limit: 300 }),
-        base44.entities.Order.list({ sort: "-created_date", limit: 6 }),
+        store.entities.Product.count({ visible: true, status: "active" }),
+        store.entities.Product.count({ status: "draft" }),
+        store.entities.Product.count({ needs_review: true }),
+        store.entities.ProductVariant.count(),
+        store.entities.Order.count({ payment_status: "pending" }),
+        store.entities.Order.count({ payment_status: "paid" }),
+        store.entities.Order.aggregate({ query: { payment_status: "paid" }, sum: ["total"] }),
+        store.entities.Product.filter({}, { sort: "-created_date", limit: 300 }),
+        store.entities.Order.list({ sort: "-created_date", limit: 6 }),
       ]);
       if (!active) return;
       const products = productPage.items || [];
@@ -45,7 +45,7 @@ export default function AdminDashboard() {
         variants,
         pendingPayment,
         paid,
-        paidTotal: paidSum?.rows?.[0]?.sum_total || 0,
+        paidTotal: paidSum?.total || 0,
         withoutImage: products.filter((product) => !(product.images || []).length).length,
         demoProducts: products.filter((product) => product.is_demo).length,
       });

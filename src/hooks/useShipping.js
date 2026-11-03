@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { base44 } from '@/api/base44Client';
+import { store } from '@/api/storeClient';
 
 export const savedShippingCep = () => {
   try { return window.sessionStorage.getItem('esex_shipping_cep') || ''; } catch { return ''; }
@@ -35,7 +35,7 @@ export function useShipping(items, postalCode) {
     try {
       const cep = String(postalCode || '').replace(/\D/g, '');
       if (!/^\d{8}$/.test(cep)) throw new Error('Informe um CEP com 8 dígitos.');
-      const { data } = await base44.functions.invoke('quoteShipping', { postal_code: cep, items: items.map(i => ({ variant_id: i.variant_id, quantity: i.quantity })) });
+      const { data } = await store.functions.invoke('quoteShipping', { postal_code: cep, items: items.map(i => ({ variant_id: i.variant_id, quantity: i.quantity })) });
       if (currentKey.current !== requestedKey || requestId !== sequence.current) return;
       if (!data?.token || !data.options?.length) throw new Error(data?.error || 'Nenhuma opção de entrega disponível.');
       setQuote({ ...data, key: requestedKey });

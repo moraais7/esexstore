@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { SlidersHorizontal, X } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { store } from "@/api/storeClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -44,7 +44,7 @@ export default function Catalog() {
   useEffect(() => setTerm(q), [q]);
 
   useEffect(() => {
-    base44.entities.Category.filter({ active: true }, { sort: "sort_order", limit: 60 })
+    store.entities.Category.filter({ active: true }, { sort: "sort_order", limit: 60 })
       .then(({ items }) => setCategories(items || []))
       .catch(() => setCategories([]));
   }, []);
@@ -66,7 +66,7 @@ export default function Catalog() {
   useEffect(() => {
     let active = true;
     setLoading(true);
-    base44.entities.Product.filter(query, { sort: sortValue, limit: 24 })
+    store.entities.Product.filter(query, { sort: sortValue, limit: 24 })
       .then((page) => {
         if (!active) return;
         setProducts(page.items || []);
@@ -76,7 +76,7 @@ export default function Catalog() {
       .finally(() => {
         if (active) setLoading(false);
       });
-    base44.entities.Product.count(query)
+    store.entities.Product.count(query)
       .then((value) => {
         if (active) setTotal(value);
       })
@@ -92,7 +92,7 @@ export default function Catalog() {
     if (!cursor || loadingMore) return;
     setLoadingMore(true);
     try {
-      const page = await base44.entities.Product.filter(query, { sort: sortValue, limit: 24, cursor });
+      const page = await store.entities.Product.filter(query, { sort: sortValue, limit: 24, cursor });
       setProducts((previous) => [...previous, ...(page.items || [])]);
       setCursor(page.next_cursor || null);
       setHasMore(Boolean(page.has_more));

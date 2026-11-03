@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { base44 } from "@/api/base44Client";
+import { store } from "@/api/storeClient";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { sanitizeHtml } from "@/lib/sanitize";
@@ -13,7 +13,7 @@ export default function InstitutionalPage() {
   useEffect(() => {
     let active = true;
     setStatus("loading");
-    base44.entities.ContentPage.filter({ slug, status: "published" }, { limit: 1 })
+    store.entities.ContentPage.filter({ slug, status: "published" }, { limit: 1 })
       .then(({ items }) => {
         if (!active) return;
         if (items?.[0]) {

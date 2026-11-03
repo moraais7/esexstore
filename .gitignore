@@ -35,5 +35,14 @@ dist-ssr
 .env
 .vite
 
-# Local link to a Base44 app, written by `base44 link`
-base44/.app.jsonc
+
+# Persistent local data and private operational inputs
+data/
+backups/
+.env*
+!.env.example
+.superpowers/
+.verification/
+
+!/server/data/
+!/server/data/catalog.json

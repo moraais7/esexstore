@@ -1,0 +1,23 @@
+{
+  "name": "Redirect",
+  "type": "object",
+  "properties": {
+    "from_path": {
+      "type": "string"
+    },
+    "to_path": {
+      "type": "string"
+    },
+    "note": {
+      "type": "string"
+    },
+    "active": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "required": [
+    "from_path",
+    "to_path"
+  ]
+}

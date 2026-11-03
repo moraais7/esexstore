@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { store } from "@/api/storeClient";
 
 export const DEFAULT_SETTINGS = {
   key: "main",
@@ -12,17 +12,17 @@ export const DEFAULT_SETTINGS = {
   instagram: "",
   address: "",
   about_short: "",
-  logo_url: "",
+  logo_url: "/media/logo.webp",
   payments_configured: false,
   payments_note: "O meio de pagamento ainda não está configurado: os pedidos ficam aguardando a definição do pagamento.",
   shipping_configured: false,
   shipping_provider: "melhor_envio",
-  shipping_origin_postal_code: "",
+  shipping_origin_postal_code: "32241340",
   shipping_sandbox: false,
   shipping_fixed_price: null,
   shipping_fixed_days: null,
   shipping_note: "Calcule as opções de entrega pelo CEP no carrinho ou no checkout.",
-  demo_mode: true,
+  demo_mode: false,
 };
 
 export function useStoreSettings() {
@@ -31,7 +31,7 @@ export function useStoreSettings() {
 
   useEffect(() => {
     let active = true;
-    base44.entities.SiteSettings.filter({ key: "main" }, { limit: 1 })
+    store.entities.SiteSettings.filter({ key: "main" }, { limit: 1 })
       .then(({ items }) => {
         if (active && items && items[0]) setSettings({ ...DEFAULT_SETTINGS, ...items[0] });
       })

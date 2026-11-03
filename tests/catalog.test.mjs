@@ -1,7 +1,9 @@
+import { withFixtureContext } from './runtime-fixture.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { autoMap, buildCatalog, parseDelimited } from '../src/lib/csv.js';
-import importCatalog from '../base44/functions/importCatalog/entry.ts';
+import importCatalogHandler from '../server/functions/importCatalog/entry.ts';
+const importCatalog = withFixtureContext(importCatalogHandler);
 
 const columns = ['Identificador URL', 'Nome', 'SKU', 'Nome da variação 1', 'Valor da variação 1', 'Preço', 'Estoque', 'Peso (kg)', 'Altura (cm)', 'Largura (cm)', 'Comprimento (cm)'];
 const row = (index, values) => ({ index, cells: columns.map(c => values[c] ?? '') });

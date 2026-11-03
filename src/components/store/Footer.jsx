@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Instagram, Mail, MessageCircle } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { store } from "@/api/storeClient";
 import { useStoreSettings } from "@/hooks/useStoreSettings";
 import { whatsappLink } from "@/lib/format";
 
@@ -11,10 +11,10 @@ export default function Footer() {
   const [categories, setCategories] = useState([]);
 
   useEffect(() => {
-    base44.entities.ContentPage.filter({ status: "published", show_in_footer: true }, { sort: "sort_order", limit: 12 })
+    store.entities.ContentPage.filter({ status: "published", show_in_footer: true }, { sort: "sort_order", limit: 12 })
       .then(({ items }) => setPages(items || []))
       .catch(() => setPages([]));
-    base44.entities.Category.filter({ active: true }, { sort: "sort_order", limit: 8 })
+    store.entities.Category.filter({ active: true }, { sort: "sort_order", limit: 8 })
       .then(({ items }) => setCategories(items || []))
       .catch(() => setCategories([]));
   }, []);

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, ExternalLink, Loader2, Save, Trash2 } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { store } from "@/api/storeClient";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -60,7 +60,7 @@ export default function AdminProductEdit() {
   const [removedVariantIds, setRemovedVariantIds] = useState([]);
 
   useEffect(() => {
-    base44.entities.Category.filter({ active: true }, { sort: "sort_order", limit: 100 })
+    store.entities.Category.filter({ active: true }, { sort: "sort_order", limit: 100 })
       .then(({ items }) => setCategories(items || []))
       .catch(() => setCategories([]));
   }, []);
@@ -72,14 +72,14 @@ export default function AdminProductEdit() {
     }
     let active = true;
     (async () => {
-      const product = await base44.entities.Product.get(id).catch((err) => (err?.status === 404 ? null : Promise.reject(err)));
+      const product = await store.entities.Product.get(id).catch((err) => (err?.status === 404 ? null : Promise.reject(err)));
       if (!active) return;
       if (!product) {
         setNotFound(true);
         setLoading(false);
         return;
       }
-      const { items } = await base44.entities.ProductVariant.filter({ product_id: product.id }, { sort: "position", limit: 200 });
+      const { items } = await store.entities.ProductVariant.filter({ product_id: product.id }, { sort: "position", limit: 200 });
       if (!active) return;
       setForm({
         ...EMPTY_FORM,
@@ -160,9 +160,9 @@ export default function AdminProductEdit() {
 
       let productId = isNew ? null : id;
       if (productId) {
-        await base44.entities.Product.update(productId, payload);
+        await store.entities.Product.update(productId, payload);
       } else {
-        const created = await base44.entities.Product.create({ ...payload, is_demo: false });
+        const created = await store.entities.Product.create({ ...payload, is_demo: false });
         productId = created.id;
       }
 
@@ -184,12 +184,12 @@ export default function AdminProductEdit() {
           position: index,
         };
         Object.assign(variantPayload, variantNumericFields(variant));
-        if (variant.id) await base44.entities.ProductVariant.update(variant.id, variantPayload);
-        else await base44.entities.ProductVariant.create(variantPayload);
+        if (variant.id) await store.entities.ProductVariant.update(variant.id, variantPayload);
+        else await store.entities.ProductVariant.create(variantPayload);
       }
 
       if (removedVariantIds.length) {
-        await base44.entities.ProductVariant.deleteMany({ id: { $in: removedVariantIds } });
+        await store.entities.ProductVariant.deleteMany({ id: { $in: removedVariantIds } });
         setRemovedVariantIds([]);
       }
 
@@ -203,8 +203,8 @@ export default function AdminProductEdit() {
 
   const removeProduct = async () => {
     if (!window.confirm("Excluir este produto e suas variações? Esta ação não pode ser desfeita.")) return;
-    await base44.entities.ProductVariant.deleteMany({ product_id: id });
-    await base44.entities.Product.delete(id);
+    await store.entities.ProductVariant.deleteMany({ product_id: id });
+    await store.entities.Product.delete(id);
     navigate("/admin/produtos");
   };
 
