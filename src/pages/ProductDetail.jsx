@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Check, MessageCircle, ShieldCheck } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { store } from "@/api/storeClient";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -29,11 +29,11 @@ export default function ProductDetail() {
     let active = true;
     setStatus("loading");
     (async () => {
-      const { items } = await base44.entities.Product.filter({ slug }, { limit: 1 });
+      const { items } = await store.entities.Product.filter({ slug }, { limit: 1 });
       if (!active) return;
       const found = items?.[0];
       if (!found) {
-        const redirect = await base44.entities.Redirect.filter({ from_path: slug, active: true }, { limit: 1 });
+        const redirect = await store.entities.Redirect.filter({ from_path: slug, active: true }, { limit: 1 });
         const target = redirect.items?.[0]?.to_path;
         if (target) {
           navigate(target.startsWith("/") ? target : `/${target}`, { replace: true });
@@ -43,8 +43,8 @@ export default function ProductDetail() {
         return;
       }
       const [variantPage, categoryPage] = await Promise.all([
-        base44.entities.ProductVariant.filter({ product_id: found.id, active: true }, { sort: "position", limit: 100 }),
-        base44.entities.Category.filter({ active: true }, { limit: 60 }),
+        store.entities.ProductVariant.filter({ product_id: found.id, active: true }, { sort: "position", limit: 100 }),
+        store.entities.Category.filter({ active: true }, { limit: 60 }),
       ]);
       if (!active) return;
       const list = variantPage.items || [];

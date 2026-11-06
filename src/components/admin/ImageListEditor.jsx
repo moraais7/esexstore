@@ -1,6 +1,6 @@
 import React, { useRef, useState } from "react";
 import { ArrowDown, ArrowUp, Loader2, Plus, Trash2, Upload } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { store } from "@/api/storeClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -35,7 +35,7 @@ export default function ImageListEditor({ images, onChange, variants = [], produ
     try {
       const uploaded = [];
       for (const file of files) {
-        const { file_url } = await base44.integrations.Core.UploadPublicFile({ file });
+        const { file_url } = await store.integrations.Core.UploadPublicFile({ file });
         uploaded.push({ url: file_url, alt: productName, variant_sku: "", sort_order: images.length + uploaded.length });
       }
       onChange([...images, ...uploaded]);

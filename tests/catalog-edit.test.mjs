@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { variantNumericFields } from '../src/lib/variantNumericFields.js';
-import { variantUnitPrice } from '../base44/shared/orders.ts';
-import { shippingOptions } from '../base44/shared/shipping.ts';
+import { variantUnitPrice } from '../server/shared/orders.ts';
+import { shippingOptions } from '../server/shared/shipping.ts';
 
 const saved = { price: 25, promo_price: 10, weight_kg: .2, height_cm: 5, width_cm: 10, length_cm: 16 };
 

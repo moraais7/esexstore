@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { AlertTriangle, ArrowRight, CheckCircle2, Download, FileSpreadsheet, Loader2, Upload } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { store } from "@/api/storeClient";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -64,7 +64,7 @@ export default function AdminImport() {
     try {
       for (let index = 0; index < preview.products.length; index += CHUNK_SIZE) {
         const chunk = preview.products.slice(index, index + CHUNK_SIZE);
-        const response = await base44.functions.invoke("importCatalog", {
+        const response = await store.functions.invoke("importCatalog", {
           products: chunk,
           options: { updateExisting: options.updateExisting },
         });
@@ -79,7 +79,7 @@ export default function AdminImport() {
         setProgress({ done: Math.min(preview.products.length, index + chunk.length), total: preview.products.length });
       }
 
-      await base44.entities.ImportBatch.create({
+      await store.entities.ImportBatch.create({
         file_name: fileName,
         mode: options.updateExisting ? "atualizar_existentes" : "apenas_novos",
         rows_total: preview.stats.rows,

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { store } from "@/api/storeClient";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -48,7 +48,7 @@ export default function AdminOrders() {
     setLoading(true);
     const query = paymentFilter === "todos" ? {} : { payment_status: paymentFilter };
     try {
-      const page = await base44.entities.Order.filter(query, { sort: "-created_date", limit: 50 });
+      const page = await store.entities.Order.filter(query, { sort: "-created_date", limit: 50 });
       setOrders(page.items || []);
     } finally {
       setLoading(false);
@@ -70,7 +70,7 @@ export default function AdminOrders() {
     if (!selected) return;
     setBusy(true); setError("");
     try {
-      const response = await base44.functions.invoke("manageOrder", { order_id: selected.id, action, ...payload });
+      const response = await store.functions.invoke("manageOrder", { order_id: selected.id, action, ...payload });
       const updated = response?.data?.order;
       if (updated) {
         setSelected(updated);

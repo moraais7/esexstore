@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Pencil, Plus, Trash2 } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { store } from "@/api/storeClient";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -19,7 +19,7 @@ export default function AdminCategories() {
   const [saving, setSaving] = useState(false);
 
   const load = async () => {
-    const { items } = await base44.entities.Category.filter({}, { sort: "sort_order", limit: 200 });
+    const { items } = await store.entities.Category.filter({}, { sort: "sort_order", limit: 200 });
     setCategories(items || []);
     setLoading(false);
   };
@@ -58,8 +58,8 @@ export default function AdminCategories() {
         slug: slugify(form.slug || form.name),
         sort_order: Number(form.sort_order) || 0,
       };
-      if (editing) await base44.entities.Category.update(editing.id, payload);
-      else await base44.entities.Category.create(payload);
+      if (editing) await store.entities.Category.update(editing.id, payload);
+      else await store.entities.Category.create(payload);
       setOpen(false);
       await load();
     } finally {
@@ -68,13 +68,13 @@ export default function AdminCategories() {
   };
 
   const toggleActive = async (category) => {
-    await base44.entities.Category.update(category.id, { active: !category.active });
+    await store.entities.Category.update(category.id, { active: !category.active });
     await load();
   };
 
   const remove = async (category) => {
     if (!window.confirm(`Excluir a categoria "${category.name}"? Os produtos continuam existindo, mas perdem esta categoria.`)) return;
-    await base44.entities.Category.delete(category.id);
+    await store.entities.Category.delete(category.id);
     await load();
   };
 

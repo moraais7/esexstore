@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { CheckCircle2, Clock, MessageCircle, AlertCircle } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { store } from "@/api/storeClient";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCart } from "@/context/CartContext";
@@ -31,7 +31,7 @@ export default function OrderSuccess() {
     const fetchStatus = async () => {
       if (!active) return;
       try {
-        const response = await base44.functions.invoke("checkoutStatus", { session_id: sessionId });
+        const response = await store.functions.invoke("checkoutStatus", { session_id: sessionId });
         const data = response?.data || {};
         if (!active) return;
         if (data.order) {

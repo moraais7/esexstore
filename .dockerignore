@@ -1,0 +1,15 @@
+node_modules
+dist
+.git
+.env
+.env.*
+data
+backups
+.superpowers
+.verification
+.agents
+tests
+docs
+
+!server/data
+!server/data/catalog.json

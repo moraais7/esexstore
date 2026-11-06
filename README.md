@@ -1,62 +1,91 @@
-# Base44 Project
+# Esex Store
 
-Use this repository to run and edit the app locally, then publish changes back through Base44.
+Loja independente com frontend React/Vite, API Node.js 24, SQLite persistente, administração própria e integrações diretas com Stripe, Melhor Envio e Resend. O código, o catálogo público inicial e as imagens ficam neste repositório. Não exige o editor ou o backend que originou o projeto.
 
-Any change pushed to the repo will also be reflected in the Base44 Builder.
+## Executar localmente
 
-## Prerequisites
+Requisitos: Node.js 24.12 ou superior da linha 24 e npm.
 
-1. Clone the repository using the project's Git URL.
-2. Navigate to the project directory.
-3. Install dependencies: `npm install`.
-4. Install the Base44 CLI: `npm install -g base44@latest`.
-5. Install [Deno](https://docs.deno.com/runtime/getting_started/installation/) — the local Base44 backend runs on it.
-
-Run `base44 --help` (or see the [CLI reference](https://docs.base44.com/developers/references/cli/commands/introduction)) for the full command surface.
-
-## Run Locally
-
-Three commands, from the project root:
-
-```bash
-base44 login   # one-time per machine
-base44 link    # one-time per clone
-base44 dev     # local backend + frontend together
+```sh
+npm ci --ignore-scripts
+cp .env.example .env
+npm run dev
 ```
 
-Open the frontend URL that `base44 dev` prints (typically `http://localhost:5173`).
+A loja abre em http://localhost:5173; a API local usa a porta 3001. `npm run dev` inicia os dois processos. Configure o primeiro administrador em `.env` usando `ADMIN_EMAIL` e `ADMIN_PASSWORD` com pelo menos 12 caracteres. O bootstrap só cria uma conta nova: não promove clientes existentes nem troca sua senha a cada reinício. Remova a senha de bootstrap do ambiente depois da criação.
 
-Notes:
+Para servir a compilação pelo próprio servidor:
 
-- **Every fresh clone needs `base44 link`.** It writes `base44/.app.jsonc` (the app-id pointer), which is deliberately gitignored. Your app id is in the Builder URL (`app.base44.com/apps/<id>/...`); `base44 link --help` shows the non-interactive flags.
-- **`base44 dev` runs the frontend for you** (via `site.serveCommand` in this repo's `base44/config.jsonc`) — never run `npm run dev` yourself: alone it serves a UI with no backend behind it (`[base44] Proxy not enabled`, every `/api` call fails), and alongside `base44 dev` the second Vite silently takes the next port and you end up looking at the wrong one.
-- **The app must be published at least once for the UI to load under `base44 dev`.** The frontend boots by fetching app settings from the hosted app; before the first publish that fails and every page redirects to login. The local API works regardless.
-- Entities, functions, and auth run locally — entity data is **in-memory only**, wiped when `base44 dev` restarts. Everything else (Core integrations, OAuth login) is forwarded to your deployed app. Full breakdown: [Local development overview](https://docs.base44.com/developers/backend/overview/local-dev/local-development-overview).
-
-## Frontend Only, Hosted Backend
-
-To work on just the frontend against your app's live hosted backend:
-
-```bash
-base44 dev --remote
+```sh
+npm run build
+npm start
 ```
 
-⚠️ In this mode writes go to your app's **production data** — plain `base44 dev` keeps everything local.
+Abra http://localhost:3000. `npm run preview` serve apenas o frontend compilado e não substitui o servidor da aplicação.
 
-## Publish Your Changes
+## Dados e mídia
 
-After pushing your changes to git, open the Base44 dashboard and publish the app:
+O primeiro início importa `server/data/catalog.json` apenas se o banco ainda não tiver produtos. A importação é transacional; reiniciar não sobrescreve preços, pedidos, configurações ou estoque. O seed contém 272 produtos públicos, 328 variações (incluindo 88 inativas), 20 categorias e 6 páginas. As imagens são arquivos próprios em `public/media/`.
 
-```bash
-base44 dashboard open
+A origem dos envios é o CEP confirmado 32241-340. Foram aproveitadas medidas existentes por correspondência de produto, SKU e opções; 60 variações ativas continuam com algum peso/medida ausente. Esses produtos exigem revisão antes de cotar pelo Melhor Envio. Não foram inventadas medidas nem preços. Duas imagens de origem não puderam ser recuperadas; todos os produtos preservam ao menos uma imagem.
+
+O banco fica em `DATA_DIR/store.sqlite` e os uploads administrativos em `DATA_DIR/uploads`. Esse diretório contém dados privados e não deve ser versionado. O seed não inclui custos internos, clientes, pedidos antigos ou senhas. Dados privados antigos precisam de uma exportação específica para migração; contas de usuários usam o novo sistema de acesso.
+
+## Configurar integrações
+
+Copie `.env.example` para o ambiente do servidor. Nunca coloque credenciais em código, commits, campos públicos do painel ou mensagens.
+
+| Variável | Finalidade |
+| --- | --- |
+| `STORE_PUBLIC_URL` | URL HTTPS da nova hospedagem; use o endereço de teste antes da migração do domínio. |
+| `STORE_ID` | Identificador estável da loja usado nos metadados do pagamento. |
+| `STRIPE_SECRET_KEY` | Comece com uma chave de teste `sk_test_...`. |
+| `STRIPE_WEBHOOK_SECRET` | Segredo do endpoint `/api/functions/stripeWebhook` no mesmo ambiente Stripe. |
+| `MELHOR_ENVIO_TOKEN` | Token com permissão de cotação de frete. |
+| `MELHOR_ENVIO_CONTACT` | E-mail de contato técnico da integração. |
+| `RESEND_API_KEY` | Envio de confirmação de pedido e autenticação por e-mail. |
+| `ORDER_EMAIL_FROM` | Remetente autorizado de um domínio verificado no Resend. |
+
+Em `/admin/configuracoes`, configure frete, CEP e ambiente correspondente ao token. Frete e pagamento começam desativados. Cadastro e recuperação de senha exigem envio de e-mail configurado; o bootstrap administrativo funciona sem um envio inicial. Checkout de visitante não exige criar uma conta.
+
+No Stripe, cadastre o webhook `https://SEU-ENDERECO-DE-TESTE/api/functions/stripeWebhook` para `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired` e `charge.refunded`. A assinatura valida o corpo bruto; a página de retorno não confirma pagamentos. Produtos e frete são recalculados no servidor e o estoque usa reservas condicionais. A integração Melhor Envio faz cotações; compra de etiquetas e rastreamento automático não fazem parte desta versão.
+
+## Hospedagem independente
+
+A proposta opcional de hospedagem no Render está em [docs/deployment.md](docs/deployment.md), com blueprint versionado, custo básico consultado e etapas de homologação. Nenhum recurso pago é criado automaticamente pelo repositório.
+
+Use um servidor ou serviço de contêiner com disco persistente e HTTPS. Esta arquitetura usa uma única instância SQLite; não use múltiplas réplicas nem um ambiente com filesystem descartável. Em um proxy HTTPS, encaminhe as rotas da loja e `/api` para o mesmo servidor e configure `STORE_PUBLIC_URL` com o endereço externo correto.
+
+Configure `TRUSTED_PROXY_IPS` com os IPs exatos dos proxies que se conectam à API, separados por vírgula (por exemplo, `127.0.0.1,::1` somente se esses forem os pares reais). O padrão vazio ignora `X-Forwarded-For`. Não use `*`, CIDRs ou redes inteiras. O proxy deve substituir ou acrescentar corretamente o endereço real de quem se conecta; a API percorre a cadeia da direita para a esquerda e para no primeiro endereço não confiável. Em contêiner, confirme o IP que a API realmente recebe como par: ele pode ser o gateway da rede, não o loopback do host. Restrinja acesso direto à API para que somente o proxy autorizado alcance a porta. Esses endereços identificam cada cliente nos limites de requisições; o webhook Stripe mantém um limite separado e exige assinatura válida.
+
+```sh
+docker compose up --build -d
 ```
 
-This repo syncs to Base44 through git, so publish from the dashboard rather than `base44 deploy` — a CLI deploy ships your local tree directly, bypassing the sync, and the deployed state silently diverges from the repo.
+O Compose expõe a aplicação apenas em `127.0.0.1:3000`, para ficar atrás do proxy HTTPS, e mantém o banco/uploads no volume `store-data`. O `.env` usado pelo Compose deve conter a URL HTTPS real e as credenciais necessárias. Recriar o contêiner conserva o volume; remover o volume apaga os dados.
 
-## Docs & Support
+Não aponte esexstore.com.br para essa hospedagem antes da homologação. A loja atual permanece operando enquanto a nova loja é testada em endereço separado. A troca de DNS e qualquer publicação de produção são etapas posteriores.
 
-GitHub integration: [https://docs.base44.com/developers/app-code/local-development/github](https://docs.base44.com/developers/app-code/local-development/github)
+## Backup e recuperação
 
-Local development: [https://docs.base44.com/developers/backend/overview/local-dev/local-development-overview](https://docs.base44.com/developers/backend/overview/local-dev/local-development-overview)
+```sh
+npm run backup
+```
 
-Support: [https://app.base44.com/support](https://app.base44.com/support)
+Cria uma cópia consistente do banco em `BACKUP_DIR` (padrão `./backups`). Copie também `DATA_DIR/uploads` e guarde backups fora do servidor. O catálogo/mídia inicial já fica no Git. Para restaurar, pare a aplicação, preserve uma cópia do diretório atual, restaure o banco e uploads, e só então reinicie. Não substitua o banco com o servidor em execução.
+
+## Verificação e homologação
+
+```sh
+npm test
+npm run lint
+npm run build
+npm run check:independent
+npm run typecheck
+```
+
+Os testes cobrem a API HTTP com SQLite real, autenticação, permissões, upload, persistência, importação, preço/frete, concorrência de estoque e webhook assinado. As chamadas externas são simuladas: esses testes não cobram dinheiro nem comprovam configuração real dos provedores. O typecheck global possui diagnósticos anteriores em componentes JavaScript; não foi desativado para escondê-los.
+
+O seed é uma fotografia do catálogo exportado, não uma sincronização contínua com a loja atual. Antes de habilitar vendas, concilie preços e estoque com a operação em funcionamento e revise as variações sem medidas.
+
+Antes de aceitar vendas: testar compra com Stripe em teste, cotações reais para diferentes CEPs, e-mail, retorno, cancelamento, expiração, disputa da última unidade, estorno integral, dispositivos móveis e recuperação de backup. Não há publicação automática: o workflow do GitHub verifica testes, lint, build e independência, sem trocar domínio ou implantar a loja.

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Loader2, Save } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { store } from "@/api/storeClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,7 +21,7 @@ export default function AdminSettings() {
 
   useEffect(() => {
     let active = true;
-    base44.entities.SiteSettings.filter({ key: "main" }, { limit: 1 })
+    store.entities.SiteSettings.filter({ key: "main" }, { limit: 1 })
       .then(({ items }) => {
         if (!active) return;
         const record = items?.[0];
@@ -74,9 +74,9 @@ export default function AdminSettings() {
         demo_mode: Boolean(settings.demo_mode),
       };
       if (recordId) {
-        await base44.entities.SiteSettings.update(recordId, payload);
+        await store.entities.SiteSettings.update(recordId, payload);
       } else {
-        const created = await base44.entities.SiteSettings.create(payload);
+        const created = await store.entities.SiteSettings.create(payload);
         setRecordId(created.id);
       }
       setSaved(true);
@@ -93,7 +93,7 @@ export default function AdminSettings() {
       let cursor;
       let fixed = 0; let unresolved = 0;
       do {
-        const { data } = await base44.functions.invoke("relinkVariants", { cursor });
+        const { data } = await store.functions.invoke("relinkVariants", { cursor });
         fixed += data.fixed; unresolved += data.unresolved; cursor = data.next_cursor;
       } while (cursor);
       setRepairResult(`${fixed} vínculo(s) corrigido(s). ${unresolved} variação(ões) precisam de revisão manual.`);
@@ -187,7 +187,7 @@ export default function AdminSettings() {
       <section className="space-y-4 border-t border-white/10 pt-8">
         <h2 className="font-heading text-2xl">Pagamento e frete</h2>
         <p className="text-sm text-background/60">
-          O checkout cobra produtos e frete juntos pelo Stripe. Habilite o pagamento após configurar as credenciais e o webhook no Base44. O frete precisa estar habilitado para aceitar compras.
+          O checkout cobra produtos e frete juntos pelo Stripe. Habilite o pagamento após configurar as credenciais e o webhook no servidor. O frete precisa estar habilitado para aceitar compras.
         </p>
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="space-y-3 border border-white/10 p-4">
@@ -223,7 +223,7 @@ export default function AdminSettings() {
           {settings.shipping_provider === "melhor_envio" ? <>
             <div><Label className={label}>CEP de origem</Label><Input value={settings.shipping_origin_postal_code || ""} onChange={e => update("shipping_origin_postal_code", e.target.value)} maxLength={9} className={`mt-2 ${field}`} /></div>
             <div className="flex items-center justify-between gap-4"><span className="text-sm">Melhor Envio em sandbox (teste)</span><Switch checked={Boolean(settings.shipping_sandbox)} onCheckedChange={value => update("shipping_sandbox", value)} /></div>
-            <p className="text-xs text-background/60">Cadastre MELHOR_ENVIO_TOKEN e MELHOR_ENVIO_CONTACT nos segredos do Base44. Confira peso e medidas de cada variação. Cotações de teste não aceitam cobranças reais.</p>
+            <p className="text-xs text-background/60">Cadastre MELHOR_ENVIO_TOKEN e MELHOR_ENVIO_CONTACT nas variáveis de ambiente do servidor. Confira peso e medidas de cada variação. Cotações de teste não aceitam cobranças reais.</p>
           </> : <>
             <div><Label className={label}>Tarifa da loja (R$)</Label><Input type="number" min="0" step="0.01" value={settings.shipping_fixed_price ?? ""} onChange={e => update("shipping_fixed_price", e.target.value)} className={`mt-2 ${field}`} /></div>
             <div><Label className={label}>Prazo de transporte (dias úteis)</Label><Input type="number" min="1" step="1" value={settings.shipping_fixed_days ?? ""} onChange={e => update("shipping_fixed_days", e.target.value)} className={`mt-2 ${field}`} /></div>
@@ -231,7 +231,7 @@ export default function AdminSettings() {
           </>}
         </div>
         <div className="space-y-3 border border-white/10 p-4">
-          <p className="text-sm">Confirmação por e-mail</p><p className="text-xs text-background/60">Configure RESEND_API_KEY e ORDER_EMAIL_FROM (remetente com domínio verificado) nos segredos do Base44. A confirmação será enviada após o pagamento aprovado. Falhas ficam registradas no pedido.</p>
+          <p className="text-sm">Confirmação por e-mail</p><p className="text-xs text-background/60">Configure RESEND_API_KEY e ORDER_EMAIL_FROM (remetente com domínio verificado) nas variáveis de ambiente do servidor. A confirmação será enviada após o pagamento aprovado. Falhas ficam registradas no pedido.</p>
           <Button type="button" variant="outline" className="rounded-xl bg-transparent" disabled={repairing} onClick={repairVariants}>{repairing ? "Verificando catálogo…" : "Corrigir vínculos das variações importadas"}</Button>
           {repairResult && <p role="status" className="text-xs text-gold">{repairResult}</p>}
         </div>

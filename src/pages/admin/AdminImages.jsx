@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ImageOff, Loader2, Upload } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { store } from "@/api/storeClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -16,8 +16,8 @@ export default function AdminImages() {
   const inputRef = useRef(null);
 
   useEffect(() => {
-    base44.entities.Product.filter({}, { sort: "name", limit: 300 }).then(({ items }) => setProducts(items || []));
-    base44.entities.ProductVariant.filter({}, { limit: 500 }).then(({ items }) => setVariants(items || []));
+    store.entities.Product.filter({}, { sort: "name", limit: 300 }).then(({ items }) => setProducts(items || []));
+    store.entities.ProductVariant.filter({}, { limit: 500 }).then(({ items }) => setVariants(items || []));
   }, []);
 
   const suggest = (name) => {
@@ -38,7 +38,7 @@ export default function AdminImages() {
     try {
       const rows = [];
       for (const file of files) {
-        const { file_url } = await base44.integrations.Core.UploadPublicFile({ file });
+        const { file_url } = await store.integrations.Core.UploadPublicFile({ file });
         const guess = suggest(file.name);
         const product = products.find((item) => item.id === guess.product_id);
         rows.push({
@@ -79,7 +79,7 @@ export default function AdminImages() {
       },
     ];
     const reviewNotes = (product.review_notes || []).filter((note) => !note.startsWith("Fotos"));
-    await base44.entities.Product.update(product.id, { images, review_notes: reviewNotes });
+    await store.entities.Product.update(product.id, { images, review_notes: reviewNotes });
     setProducts((previous) => previous.map((item) => (item.id === product.id ? { ...item, images, review_notes: reviewNotes } : item)));
     setPending((previous) => previous.filter((item) => item.id !== row.id));
   };

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Eye, EyeOff, Pencil, Plus, Trash2 } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { store } from "@/api/storeClient";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -30,7 +30,7 @@ export default function AdminPages() {
   const [saving, setSaving] = useState(false);
 
   const load = async () => {
-    const { items } = await base44.entities.ContentPage.filter({}, { sort: "sort_order", limit: 100 });
+    const { items } = await store.entities.ContentPage.filter({}, { sort: "sort_order", limit: 100 });
     setPages(items || []);
     setLoading(false);
   };
@@ -62,8 +62,8 @@ export default function AdminPages() {
         slug: slugify(form.slug || form.title),
         sort_order: Number(form.sort_order) || 0,
       };
-      if (editing) await base44.entities.ContentPage.update(editing.id, payload);
-      else await base44.entities.ContentPage.create({ ...payload, is_demo: false });
+      if (editing) await store.entities.ContentPage.update(editing.id, payload);
+      else await store.entities.ContentPage.create({ ...payload, is_demo: false });
       setOpen(false);
       await load();
     } finally {
@@ -73,13 +73,13 @@ export default function AdminPages() {
 
   const toggleStatus = async (page) => {
     const next = page.status === "published" ? "draft" : "published";
-    await base44.entities.ContentPage.update(page.id, { status: next });
+    await store.entities.ContentPage.update(page.id, { status: next });
     await load();
   };
 
   const remove = async (page) => {
     if (!window.confirm(`Excluir a página "${page.title}"?`)) return;
-    await base44.entities.ContentPage.delete(page.id);
+    await store.entities.ContentPage.delete(page.id);
     await load();
   };
 

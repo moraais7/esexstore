@@ -1,16 +1,23 @@
+import { withFixtureContext } from './runtime-fixture.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
-import quoteShipping from '../base44/functions/quoteShipping/entry.ts';
-import createCheckout from '../base44/functions/createCheckout/entry.ts';
-import stripeWebhook from '../base44/functions/stripeWebhook/entry.ts';
-import cancelCheckout from '../base44/functions/cancelCheckout/entry.ts';
-import manageOrder from '../base44/functions/manageOrder/entry.ts';
-import relinkVariants from '../base44/functions/relinkVariants/entry.ts';
-import { normalizeItems } from '../base44/shared/cart.ts';
-import { shippingOptions } from '../base44/shared/shipping.ts';
-import { reserveOrderStock, expireOrder, confirmOrderPayment } from '../base44/shared/orders.ts';
-import { sendPaymentEmail } from '../base44/shared/email.ts';
+import quoteShippingHandler from '../server/functions/quoteShipping/entry.ts';
+import createCheckoutHandler from '../server/functions/createCheckout/entry.ts';
+import stripeWebhookHandler from '../server/functions/stripeWebhook/entry.ts';
+import cancelCheckoutHandler from '../server/functions/cancelCheckout/entry.ts';
+import manageOrderHandler from '../server/functions/manageOrder/entry.ts';
+import relinkVariantsHandler from '../server/functions/relinkVariants/entry.ts';
+import { normalizeItems } from '../server/shared/cart.ts';
+import { shippingOptions } from '../server/shared/shipping.ts';
+import { reserveOrderStock, expireOrder, confirmOrderPayment } from '../server/shared/orders.ts';
+import { sendPaymentEmail } from '../server/shared/email.ts';
+const quoteShipping = withFixtureContext(quoteShippingHandler);
+const createCheckout = withFixtureContext(createCheckoutHandler);
+const stripeWebhook = withFixtureContext(stripeWebhookHandler);
+const cancelCheckout = withFixtureContext(cancelCheckoutHandler);
+const manageOrder = withFixtureContext(manageOrderHandler);
+const relinkVariants = withFixtureContext(relinkVariantsHandler);
 
 const clone = value => structuredClone(value);
 const matches = (record, query) => Object.entries(query).every(([key, expected]) => {
@@ -50,7 +57,7 @@ function fixture({ stock = 5 } = {}) {
   }]));
   const client = { asServiceRole: { entities }, auth: { me: async () => ({ role: 'admin', email: 'admin@example.com' }) } };
   globalThis.__checkoutClient = () => client;
-  globalThis.__checkoutSecrets = { STRIPE_SECRET_KEY: 'sk_test_mock', STRIPE_WEBHOOK_SECRET: 'whsec_mock', BASE44_APP_ID: 'app1', STORE_PUBLIC_URL: 'https://store.example.com' };
+  globalThis.__checkoutSecrets = { STRIPE_SECRET_KEY: 'sk_test_mock', STRIPE_WEBHOOK_SECRET: 'whsec_mock', STORE_ID: 'app1', STORE_PUBLIC_URL: 'https://store.example.com' };
   return { db, client, entities };
 }
 const post = body => new Request('https://store.example.com/functions/test', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
@@ -76,7 +83,7 @@ async function signed(event, secret = 'whsec_mock', age = 0) {
   const signature = createHmac('sha256', secret).update(`${timestamp}.${raw}`).digest('hex');
   return stripeWebhook(new Request('https://store.example.com/functions/stripeWebhook', { method: 'POST', headers: { 'stripe-signature': `t=${timestamp},v1=${signature}` }, body: raw }));
 }
-const paidEvent = order => ({ type: 'checkout.session.completed', data: { object: { id: 'cs_test_123', payment_status: 'paid', amount_total: 5232, currency: 'brl', payment_intent: 'pi_123', metadata: { order_id: order.id, base44_app_id: 'app1' } } } });
+const paidEvent = order => ({ type: 'checkout.session.completed', data: { object: { id: 'cs_test_123', payment_status: 'paid', amount_total: 5232, currency: 'brl', payment_intent: 'pi_123', metadata: { order_id: order.id, store_id: 'app1' } } } });
 
 test('invalid or duplicate quantities cannot bypass item limits', () => {
   for (const quantity of [0, -1, 1.5, 11, '2', NaN, Infinity]) assert.throws(() => normalizeItems([{ variant_id: 'v1', quantity }]));
@@ -255,7 +262,7 @@ test('asynchronous payment failure releases the held stock once', async () => {
 
 test('a refund arriving before completion is reconciled by PaymentIntent metadata', async () => {
   const { db } = fixture(); mockStripe(); await createCheckout(post(await quoted()));
-  globalThis.fetch = async () => Response.json({ metadata: { order_id: db.Order[0].id, base44_app_id: 'app1' } });
+  globalThis.fetch = async () => Response.json({ metadata: { order_id: db.Order[0].id, store_id: 'app1' } });
   const event = { type: 'charge.refunded', data: { object: { payment_intent: 'pi_123', refunded: true } } };
   assert.equal((await signed(event)).status, 200);
   assert.equal(db.Order[0].payment_status, 'refunded'); assert.equal(db.ProductVariant[0].stock, 5);

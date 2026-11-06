@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Menu, Search, ShoppingBag } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { store } from "@/api/storeClient";
 import { useCart } from "@/context/CartContext";
 import { useStoreSettings } from "@/hooks/useStoreSettings";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,7 @@ const NAV = [
   { to: "/contato", label: "Contato" },
 ];
 
-const LOGO_URL = "https://base44.app/api/apps/6adfa4dcd5a6331f0bfc3bfa/files/mp/public/6adfa4dcd5a6331f0bfc3bfa/8fafc6dca_logo-esex.webp";
+const LOGO_URL = "/media/logo.webp";
 
 const SEARCH_FIELD =
   "rounded-xl border-gold/35 bg-secondary text-xs tracking-[0.06em] text-foreground shadow-none placeholder:text-muted-foreground focus-visible:border-gold focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0";
@@ -33,7 +33,7 @@ export default function Header({ theme, onToggleTheme }) {
   const { pathname } = useLocation();
 
   useEffect(() => {
-    base44.entities.Category.filter({ active: true }, { sort: "sort_order", limit: 30 })
+    store.entities.Category.filter({ active: true }, { sort: "sort_order", limit: 30 })
       .then(({ items }) => setCategories(items || []))
       .catch(() => setCategories([]));
   }, []);

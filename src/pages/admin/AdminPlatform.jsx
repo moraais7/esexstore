@@ -1,43 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { Download, Plus, Trash2 } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { store } from "@/api/storeClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 
-const DEPENDENCIES = [
-  {
-    resource: "Banco de dados do catálogo e dos pedidos",
-    platform: "Entidades da Base44 (API + banco gerenciado + controle de acesso por registro)",
-    replacement: "Postgres/Supabase ou MySQL com API própria; reescrever as consultas hoje feitas pelo SDK",
-  },
-  {
-    resource: "Acesso à área administrativa",
-    platform: "Autenticação da plataforma (sessão + papel de administrador)",
-    replacement: "Provedor próprio de login (Clerk, Auth.js) com verificação de papel no servidor",
-  },
-  {
-    resource: "Pagamento com cartão",
-    platform: "Stripe conectado pela plataforma, com as credenciais guardadas nos segredos do app",
-    replacement: "Conta Stripe própria + endpoint de webhook próprio (o código do webhook é portável)",
-  },
-  {
-    resource: "Fotos dos produtos",
-    platform: "Armazenamento público da plataforma",
-    replacement: "Bucket (S3, Cloudflare R2) com CDN, mantendo o mesmo formato de URL por imagem",
-  },
-  {
-    resource: "Publicação do site",
-    platform: "Build e hospedagem da Base44 (com domínio próprio)",
-    replacement: "Vercel, Netlify ou Cloudflare Pages a partir do mesmo código",
-  },
-  {
-    resource: "Rotinas agendadas e avisos automáticos",
-    platform: "Workflows da plataforma",
-    replacement: "Cron próprio (por exemplo, um serviço de filas) executando as mesmas chamadas",
-  },
-];
 
 export default function AdminPlatform() {
   const [redirects, setRedirects] = useState([]);
@@ -45,7 +13,7 @@ export default function AdminPlatform() {
   const [saving, setSaving] = useState(false);
 
   const load = async () => {
-    const { items } = await base44.entities.Redirect.filter({}, { sort: "-created_date", limit: 300 });
+    const { items } = await store.entities.Redirect.filter({}, { sort: "-created_date", limit: 300 });
     setRedirects(items || []);
   };
 
@@ -59,7 +27,7 @@ export default function AdminPlatform() {
     setSaving(true);
     try {
       const normalize = (value) => (value.startsWith("/") ? value : `/${value}`);
-      await base44.entities.Redirect.create({
+      await store.entities.Redirect.create({
         from_path: normalize(form.from_path).replace("/produto/", ""),
         to_path: normalize(form.to_path),
         note: form.note,
@@ -73,13 +41,13 @@ export default function AdminPlatform() {
   };
 
   const toggle = async (redirect) => {
-    await base44.entities.Redirect.update(redirect.id, { active: !redirect.active });
+    await store.entities.Redirect.update(redirect.id, { active: !redirect.active });
     await load();
   };
 
   const remove = async (redirect) => {
     if (!window.confirm(`Remover o redirecionamento ${redirect.from_path}?`)) return;
-    await base44.entities.Redirect.delete(redirect.id);
+    await store.entities.Redirect.delete(redirect.id);
     await load();
   };
 
@@ -101,44 +69,11 @@ export default function AdminPlatform() {
     <div className="space-y-12">
       <div>
         <p className="text-xs uppercase tracking-[0.2em] text-background/50">Técnico</p>
-        <h1 className="mt-2 font-heading text-3xl">Plataforma e migração</h1>
+        <h1 className="mt-2 font-heading text-3xl">Redirecionamentos</h1>
         <p className="mt-2 max-w-3xl text-sm text-background/60">
-          O que a loja usa da Base44 hoje e o que seria necessário para roda fora dela. Os endereços dos produtos são mantidos
-          iguais aos da loja atual sempre que possível; quando um endereço mudar, registre o redirecionamento abaixo.
+          Mantenha os endereços antigos dos produtos funcionando quando seus endereços mudarem.
         </p>
       </div>
-
-      <section className="space-y-4">
-        <h2 className="font-heading text-2xl">O que depende da Base44</h2>
-        <div className="overflow-x-auto border border-white/10">
-          <table className="w-full min-w-[860px] text-sm">
-            <thead className="border-b border-white/10 text-left text-[11px] uppercase tracking-[0.14em] text-background/45">
-              <tr>
-                <th className="px-4 py-3">Recurso da loja</th>
-                <th className="px-4 py-3">Hoje, na plataforma</th>
-                <th className="px-4 py-3">Para hospedar fora</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/10">
-              {DEPENDENCIES.map((row) => (
-                <tr key={row.resource}>
-                  <td className="px-4 py-4 text-background/90">{row.resource}</td>
-                  <td className="px-4 py-4 text-xs text-background/60">{row.platform}</td>
-                  <td className="px-4 py-4 text-xs text-background/60">{row.replacement}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div className="border border-gold/30 bg-gold/[0.06] p-5 text-sm text-background/80">
-          <p className="font-medium text-gold">Sobre independência do projeto</p>
-          <p className="mt-2 leading-relaxed">
-            Exportar o código da aplicação não entrega independência completa: banco de dados, autenticação, arquivos enviados,
-            envio de e-mails e credenciais do Stripe continuam na plataforma e precisam ser recriados e receber os dados
-            migrados. Considere isso um projeto de migração, não uma simples cópia de arquivos.
-          </p>
-        </div>
-      </section>
 
       <section className="space-y-5">
         <div className="flex flex-wrap items-end justify-between gap-4">
@@ -215,7 +150,7 @@ export default function AdminPlatform() {
           </table>
         </div>
         <p className="text-xs text-background/45">
-          Observação: redirecionamentos permanentes (301) precisam ser configurados no domínio/DNS, fora desta tabela. Aqui o
+          Observação: redirecionamentos permanentes (301) podem ser configurados no servidor. Aqui o
           redirecionamento acontece quando o visitante abre o endereço antigo dentro da loja.
         </p>
       </section>

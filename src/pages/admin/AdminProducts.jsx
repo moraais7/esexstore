@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { CheckCircle2, Eye, EyeOff, Pencil, Plus, Search, Trash2 } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { store } from "@/api/storeClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -34,7 +34,7 @@ export default function AdminProducts() {
   useEffect(() => {
     let active = true;
     setLoading(true);
-    base44.entities.Product.filter(buildQuery(), { sort: "-updated_date", limit: 30 })
+    store.entities.Product.filter(buildQuery(), { sort: "-updated_date", limit: 30 })
       .then((page) => {
         if (!active) return;
         setProducts(page.items || []);
@@ -51,7 +51,7 @@ export default function AdminProducts() {
 
   const loadMore = async () => {
     if (!cursor) return;
-    const page = await base44.entities.Product.filter(buildQuery(), { sort: "-updated_date", limit: 30, cursor });
+    const page = await store.entities.Product.filter(buildQuery(), { sort: "-updated_date", limit: 30, cursor });
     setProducts((previous) => [...previous, ...(page.items || [])]);
     setCursor(page.next_cursor || null);
     setHasMore(Boolean(page.has_more));
@@ -61,7 +61,7 @@ export default function AdminProducts() {
     setBusyId(product.id);
     const nextVisible = !product.visible;
     try {
-      await base44.entities.Product.update(product.id, {
+      await store.entities.Product.update(product.id, {
         visible: nextVisible,
         status: nextVisible ? "active" : "draft",
       });
@@ -76,7 +76,7 @@ export default function AdminProducts() {
   const clearReview = async (product) => {
     setBusyId(product.id);
     try {
-      await base44.entities.Product.update(product.id, { needs_review: false, review_notes: [] });
+      await store.entities.Product.update(product.id, { needs_review: false, review_notes: [] });
       setProducts((previous) => previous.map((item) => (item.id === product.id ? { ...item, needs_review: false, review_notes: [] } : item)));
     } finally {
       setBusyId(null);
@@ -87,8 +87,8 @@ export default function AdminProducts() {
     if (!window.confirm(`Excluir "${product.name}" e suas variações? Esta ação não pode ser desfeita.`)) return;
     setBusyId(product.id);
     try {
-      await base44.entities.ProductVariant.deleteMany({ product_id: product.id });
-      await base44.entities.Product.delete(product.id);
+      await store.entities.ProductVariant.deleteMany({ product_id: product.id });
+      await store.entities.Product.delete(product.id);
       setProducts((previous) => previous.filter((item) => item.id !== product.id));
     } finally {
       setBusyId(null);

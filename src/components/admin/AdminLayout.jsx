@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link, NavLink, Outlet } from "react-router-dom";
 import { ArrowLeft, Loader2, LogOut, ShieldAlert } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { store } from "@/api/storeClient";
 import { Button } from "@/components/ui/button";
 
 const NAV = [
@@ -13,7 +13,7 @@ const NAV = [
   { to: "/admin/imagens", label: "Imagens" },
   { to: "/admin/paginas", label: "Conteúdo" },
   { to: "/admin/configuracoes", label: "Configurações" },
-  { to: "/admin/plataforma", label: "Plataforma e migração" },
+  { to: "/admin/plataforma", label: "Redirecionamentos" },
 ];
 
 export default function AdminLayout() {
@@ -21,7 +21,7 @@ export default function AdminLayout() {
   const [status, setStatus] = useState("loading");
 
   useEffect(() => {
-    base44.auth
+    store.auth
       .me()
       .then((me) => {
         setUser(me);
@@ -29,7 +29,7 @@ export default function AdminLayout() {
       })
       .catch((error) => {
         if (error?.status === 401) {
-          base44.auth.redirectToLogin(window.location.href);
+          store.auth.redirectToLogin(window.location.href);
           return;
         }
         setStatus("error");
@@ -61,7 +61,7 @@ export default function AdminLayout() {
             <Button asChild variant="outline" className="rounded-xl border-background/30 text-background hover:bg-background/10">
               <Link to="/">Voltar para a loja</Link>
             </Button>
-            <Button variant="ghost" className="rounded-xl text-background hover:bg-background/10" onClick={() => base44.auth.logout("/")}>
+            <Button variant="ghost" className="rounded-xl text-background hover:bg-background/10" onClick={() => store.auth.logout("/")}>
               <LogOut className="mr-2 h-4 w-4" strokeWidth={1.6} /> Sair
             </Button>
           </div>
@@ -83,7 +83,7 @@ export default function AdminLayout() {
             </div>
             <div className="flex items-center gap-3 text-xs text-background/60">
               <span className="hidden sm:inline">{user?.email}</span>
-              <button type="button" onClick={() => base44.auth.logout("/")} className="inline-flex items-center gap-1.5 hover:text-background">
+              <button type="button" onClick={() => store.auth.logout("/")} className="inline-flex items-center gap-1.5 hover:text-background">
                 <LogOut className="h-3.5 w-3.5" strokeWidth={1.6} /> Sair
               </button>
             </div>

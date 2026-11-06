@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Lock, ShieldCheck } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { store } from "@/api/storeClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,7 +40,7 @@ export default function Checkout() {
     if (!cancelToken) { setCancelling(false); return undefined; }
     let active = true;
     setCancelling(true);
-    base44.functions.invoke("cancelCheckout", { token: cancelToken })
+    store.functions.invoke("cancelCheckout", { token: cancelToken })
       .then(({ data }) => {
         if (!active) return;
         if (!data.cancelled) setError("O pagamento anterior pode estar em processamento. Confira a situação com a loja antes de tentar outra compra.");
@@ -75,7 +75,7 @@ export default function Checkout() {
 
     setSubmitting(true);
     try {
-      const response = await base44.functions.invoke("createCheckout", {
+      const response = await store.functions.invoke("createCheckout", {
         items: items.map((item) => ({ variant_id: item.variant_id, quantity: item.quantity })),
         shipping_quote_token: shipping.quote.token,
         shipping_option_id: shipping.option.id,
