@@ -52,6 +52,8 @@ No Stripe, cadastre o webhook `https://SEU-ENDERECO-DE-TESTE/api/functions/strip
 
 ## Hospedagem independente
 
+A proposta opcional de hospedagem no Render está em [docs/deployment.md](docs/deployment.md), com blueprint versionado, custo básico consultado e etapas de homologação. Nenhum recurso pago é criado automaticamente pelo repositório.
+
 Use um servidor ou serviço de contêiner com disco persistente e HTTPS. Esta arquitetura usa uma única instância SQLite; não use múltiplas réplicas nem um ambiente com filesystem descartável. Em um proxy HTTPS, encaminhe as rotas da loja e `/api` para o mesmo servidor e configure `STORE_PUBLIC_URL` com o endereço externo correto.
 
 Configure `TRUSTED_PROXY_IPS` com os IPs exatos dos proxies que se conectam à API, separados por vírgula (por exemplo, `127.0.0.1,::1` somente se esses forem os pares reais). O padrão vazio ignora `X-Forwarded-For`. Não use `*`, CIDRs ou redes inteiras. O proxy deve substituir ou acrescentar corretamente o endereço real de quem se conecta; a API percorre a cadeia da direita para a esquerda e para no primeiro endereço não confiável. Em contêiner, confirme o IP que a API realmente recebe como par: ele pode ser o gateway da rede, não o loopback do host. Restrinja acesso direto à API para que somente o proxy autorizado alcance a porta. Esses endereços identificam cada cliente nos limites de requisições; o webhook Stripe mantém um limite separado e exige assinatura válida.

@@ -43,16 +43,20 @@ function trustedProxies(value){
  const ips=String(value||'').split(',').map(ip=>ip.trim()).filter(Boolean);
  const normalized=ips.map(normalizedIP);if(normalized.some(ip=>!ip))throw new Error('TRUSTED_PROXY_IPS must contain exact IP addresses separated by commas');return new Set(normalized);
 }
-function clientIP(req,trusted){
- const peer=normalizedIP(req.socket.remoteAddress)||'unknown';if(!trusted.has(peer))return peer;
+function clientIP(req,trusted,hopCount){
+ const peer=normalizedIP(req.socket.remoteAddress)||'unknown';if(!trusted.has(peer)&&!hopCount)return peer;
  const forwarded=req.headers['x-forwarded-for'];if(typeof forwarded!=='string'||forwarded.length>2048)return peer;
  const hops=forwarded.split(',').map(normalizedIP);if(hops.some(ip=>!ip))return peer;
+ if(hopCount)return hops.length>=hopCount?hops[hops.length-hopCount]:peer;
  let current=peer;for(let i=hops.length-1;i>=0&&trusted.has(current);i--)current=hops[i];return current;
 }
 export function createApplication({databasePath=':memory:',publicUrl='http://localhost:3000',handlers={},env={},distDir,uploadsDir=path.resolve('data/uploads')}={}){
+ const configuredHops=String(env.TRUSTED_PROXY_HOPS||'0');
+ if(!/^[0-8]$/.test(configuredHops))throw new Error('TRUSTED_PROXY_HOPS must be an integer from 0 to 8');
+ const hopCount=Number(configuredHops);const trusted=trustedProxies(env.TRUSTED_PROXY_IPS);
+ if(hopCount&&trusted.size)throw new Error('Configure TRUSTED_PROXY_IPS or TRUSTED_PROXY_HOPS, not both');
  const origin=new URL(publicUrl).origin;const store=createStore(databasePath);const auth=createAuth(store,{...env,PUBLIC_URL:publicUrl});
  if(env.ADMIN_EMAIL&&env.ADMIN_PASSWORD)bootstrapAdmin(store,env.ADMIN_EMAIL,env.ADMIN_PASSWORD);
- const trusted=trustedProxies(env.TRUSTED_PROXY_IPS);
  const limits=new Map();
  function rate(key,max,period){const now=Date.now();if(limits.size>10000)for(const[k,bucket]of limits)if(bucket.until<now)limits.delete(k);const bucket=limits.get(key);if(!bucket||bucket.until<now){limits.set(key,{count:1,until:now+period});return;}if(++bucket.count>max)throw failure(429,'Muitas tentativas. Tente novamente mais tarde.');}
  const secure=new URL(publicUrl).protocol==='https:';
@@ -63,8 +67,10 @@ export function createApplication({databasePath=':memory:',publicUrl='http://loc
  const method=req.method||'GET';const mutating=!['GET','HEAD','OPTIONS'].includes(method);const user=await auth.currentUser(req.headers.cookie);const admin=user?.role==='admin';
  if(mutating){const incoming=req.headers.origin;if((incoming&&incoming!==origin)||req.headers['sec-fetch-site']==='cross-site'||(user&&!incoming&&req.headers['sec-fetch-site']!=='same-origin'))throw failure(403,'Origem inválida');}
  let response;
- if(pathname.startsWith('/api/')){
- const ip=clientIP(req,trusted);
+ if(pathname==='/api/health'&&['GET','HEAD'].includes(method)){
+ try{store.db.prepare('SELECT 1').get();response=Response.json({status:'ok'});}catch{response=Response.json({status:'unavailable'},{status:503});}
+ }else if(pathname.startsWith('/api/')){
+ const ip=clientIP(req,trusted,hopCount);
  // Stripe signatures still authenticate the raw request in its handler. A separate
  // bounded bucket keeps storefront traffic from starving payment notifications.
  if(pathname==='/api/functions/stripeWebhook')rate(`webhook:${ip}`,1200,60000);else rate(`api:${ip}`,600,60000);

@@ -1,0 +1,37 @@
+# Opt-in blueprint. Creating this paid service requires the owner's approval.
+# It uses a separate onrender.com address and does not configure a custom domain.
+services:
+  - type: web
+    name: esex-store-homologacao
+    runtime: node
+    repo: https://github.com/moraais7/esexstore.git
+    branch: codex/independent-store
+    plan: 0.5c-512mb
+    numInstances: 1
+    autoDeployTrigger: 'off'
+    buildCommand: npm ci --ignore-scripts && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    disk:
+      name: esex-store-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_VERSION
+        value: 24.22.1
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATA_DIR
+        value: /var/data
+      - key: STORE_ID
+        value: esex-store
+      # Render's controlled load balancer is the single trusted ingress hop.
+      # Never reuse this setting on a server directly reachable by visitors.
+      - key: TRUSTED_PROXY_HOPS
+        value: '1'
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false

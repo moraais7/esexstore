@@ -3,17 +3,19 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createApplication } from './http.js';
 import { seedIfEmpty } from './seed.js';
+import { deploymentEnvironment } from './config.js';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
-const dataDir = path.resolve(process.env.DATA_DIR || path.join(root, 'data'));
+const env = deploymentEnvironment(process.env);
+const dataDir = path.resolve(env.DATA_DIR || path.join(root, 'data'));
 mkdirSync(dataDir, { recursive: true, mode: 0o700 });
 const names = ['quoteShipping', 'createCheckout', 'stripeWebhook', 'checkoutStatus', 'cancelCheckout', 'manageOrder', 'importCatalog', 'relinkVariants'];
 const handlers = Object.fromEntries(await Promise.all(names.map(async name => [name, (await import(`./functions/${name}/entry.ts`)).default])));
 const app = createApplication({
   databasePath: path.join(dataDir, 'store.sqlite'),
-  publicUrl: process.env.STORE_PUBLIC_URL || 'http://localhost:3000',
+  publicUrl: env.STORE_PUBLIC_URL,
   handlers,
-  env: process.env,
+  env,
   distDir: path.join(root, 'dist'),
   uploadsDir: path.join(dataDir, 'uploads'),
 });
